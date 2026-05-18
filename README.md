@@ -1,0 +1,1 @@
+AxiQuant SaaS: Motor de inteligência executiva que combina análise econométrica (Regressão OLS) com Inteligência Artificial (Agentes Groq Llama 3) para prever faturamento, validar o ROI de campanhas e realizar simulações de mercado via Inteligência de Enxame.
