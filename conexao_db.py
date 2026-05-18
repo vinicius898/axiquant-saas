@@ -1,67 +1,58 @@
 import os
-import requests
+import streamlit as st
 import pandas as pd
+from supabase import create_client, Client
 from dotenv import load_dotenv
 
-# Carrega as chaves
+# Tenta carregar o arquivo .env (útil apenas quando rodar no seu PC local)
 load_dotenv(override=True)
-SUPABASE_URL = os.getenv("SUPABASE_URL").replace(
+
+# 1. Função Cofre: Busca na Nuvem (st.secrets), se falhar, busca no PC (os.getenv)
+
+
+def buscar_chave(nome):
+    try:
+        # Tenta abrir o cofre da nuvem primeiro
+        return st.secrets[nome]
+    except:
+        # Se der erro, procura no sistema do computador
+        return os.getenv(nome)
+
+
+# 2. Injeta as chaves no sistema operacional (A IA e o Banco precisam disso na nuvem)
+chave_groq = buscar_chave("GROQ_API_KEY")
+if chave_groq:
+    os.environ["GROQ_API_KEY"] = chave_groq
+
+url_bruta = buscar_chave("SUPABASE_URL")
+chave_bruta = buscar_chave("SUPABASE_KEY")
+
+if not url_bruta:
+    # Trava de segurança para avisar se o cofre estiver trancado
+    raise ValueError(
+        "Chaves não encontradas! O Streamlit Cloud não encontrou as senhas nos Secrets.")
+
+# Formata a URL do Supabase para evitar erros
+SUPABASE_URL = url_bruta.replace(
     "/rest/v1/", "").replace("/rest/v1", "").rstrip("/")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-# ⚠️ COLOQUE AQUI O SEU ID DA EMPRESA
-EMPRESA_ID = "676e1310-117b-4053-8460-f2d131f679c8"
-
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
-}
+SUPABASE_KEY = chave_bruta
 
 
 def puxar_dados_nuvem():
-    """
-    Vai até o Supabase, baixa as tabelas, agrupa as vendas por dia 
-    e devolve um DataFrame idêntico ao antigo CSV.
-    """
-    print("Conectando ao Supabase...")
+    try:
+        supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # 1. Puxar Marketing
-    url_mkt = f"{SUPABASE_URL}/rest/v1/marketing_diario?empresa_id=eq.{EMPRESA_ID}"
-    req_mkt = requests.get(url_mkt, headers=headers)
-    df_mkt = pd.DataFrame(req_mkt.json())
+        # Puxa o ID da empresa (se não achar, usa '1' como padrão)
+        empresa_id = buscar_chave(
+            "676e1310-117b-4053-8460-f2d131f679c8") or "1"
 
-    # 2. Puxar Vendas
-    url_vendas = f"{SUPABASE_URL}/rest/v1/vendas_granulares?empresa_id=eq.{EMPRESA_ID}"
-    req_vendas = requests.get(url_vendas, headers=headers)
-    df_vendas = pd.DataFrame(req_vendas.json())
+        resposta = supabase.table('faturamento_diario').select(
+            '*').eq('empresa_id', int(empresa_id)).order('data', desc=False).execute()
 
-    # 3. Tratamento de Dados (O Liquidificador)
-    # Converte datas para o mesmo padrão
-    # Normaliza datas e remove o fuso horário (UTC) para padronizar
-    df_mkt['data'] = pd.to_datetime(df_mkt['data_referencia'])
-    df_vendas['data'] = pd.to_datetime(
-        df_vendas['data_hora_venda']).dt.tz_localize(None).dt.normalize()
-
-    # Agrupa as vendas por dia (soma o valor bruto do dia)
-    vendas_diarias = df_vendas.groupby(
-        'data')['valor_bruto'].sum().reset_index()
-    vendas_diarias.rename(columns={'valor_bruto': 'Receita'}, inplace=True)
-
-    # Agrupa marketing por dia
-    mkt_diario = df_mkt.groupby('data')['valor_investido'].sum().reset_index()
-    mkt_diario.rename(
-        columns={'valor_investido': 'Investimento_Ads'}, inplace=True)
-
-    # 4. A Fusão (Merge)
-    df_final = pd.merge(vendas_diarias, mkt_diario, on='data', how='inner')
-
-    # Para não quebrar o seu motor antigo que esperava outras colunas,
-    # criamos colunas neutras temporárias até você atualizar a matemática do motor
-    import numpy as np
-    df_final['Preco_Venda'] = np.random.uniform(50, 150, len(df_final))
-    df_final['Postagens_Social'] = np.random.randint(0, 5, len(df_final))
-
-    print(
-        f"✅ Dados puxados com sucesso! {len(df_final)} dias de operação carregados.")
-    return df_final
+        if resposta.data:
+            return pd.DataFrame(resposta.data)
+        else:
+            return None
+    except Exception as e:
+        print(f"Erro ao conectar com o Supabase: {e}")
+        return None
