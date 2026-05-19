@@ -100,7 +100,7 @@ st.markdown("""
 # --- MOTOR ESTATÍSTICO (OLS) ---
 def rodar_estatistica(df):
     try:
-        Y = df['Receita']
+        Y = df['faturamento']
         X = df[['Investimento_Ads', 'Preco_Venda', 'Postagens_Social']]
         X = sm.add_constant(X)
         modelo = sm.OLS(Y, X).fit()
@@ -115,7 +115,7 @@ def rodar_estatistica(df):
             "ads_status": "Confirmado" if p_values['Investimento_Ads'] < 0.05 else "Em Observação",
             "preco_status": "Confirmado" if p_values['Preco_Venda'] < 0.05 else "Em Observação",
             "conf_intervalo": [conf_int.loc['Preco_Venda'][0], conf_int.loc['Preco_Venda'][1]],
-            "ticket_medio_base": df['Receita'].sum() / (len(df) * 5)
+            "ticket_medio_base": df['faturamento'].sum() / (len(df) * 5)
         }
     except Exception as e:
         st.error(f"Erro no motor estatístico: {e}")
@@ -137,7 +137,7 @@ cfo_agente = Agent(
 
 # --- INTERFACE ---
 st.sidebar.markdown("### 💎 AxiQuant Admin")
-st.sidebar.caption("Motor de Previsão de Receita v1.0")
+st.sidebar.caption("Motor de Previsão de faturamento v1.0")
 
 if st.sidebar.button("☁️ Sincronizar Operação"):
     with st.spinner("Conectando ao banco de dados..."):
@@ -161,11 +161,11 @@ if 'dados_salvos' in st.session_state:
 
     with col_graf:
         st.markdown("#### 📈 Tendência de Faturamento")
-        st.line_chart(df.set_index('data')['Receita'], color="#2F81F7")
+        st.line_chart(df.set_index('data')['faturamento'], color="#2F81F7")
 
         c1, c2 = st.columns(2)
-        c1.metric("Receita Total",
-                  f"R$ {df['Receita'].sum():,.2f}", "+12% vs. mês anterior")
+        c1.metric("faturamento Total",
+                  f"R$ {df['faturamento'].sum():,.2f}", "+12% vs. mês anterior")
         c2.metric("Dias Analisados", len(df), "Período validado")
 
     with col_ia:
