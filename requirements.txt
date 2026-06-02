@@ -1,4 +1,4 @@
-﻿streamlit
+streamlit
 pandas
 statsmodels
 requests
@@ -6,3 +6,4 @@ python-dotenv
 agno
 groq
 supabase
+scikit-learn
