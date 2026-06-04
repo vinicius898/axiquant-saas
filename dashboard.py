@@ -21,7 +21,7 @@ import os
 os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 cfo_agent = Agent(
-    model=Groq(id="llama3-70b-8192"),
+    model=Groq(id="llama-3.3-70b-versatile"),
     description="Você é um CFO sênior de um fundo quantitativo. Seja analítico e direto."
 )
 # 3. Motor Principal
