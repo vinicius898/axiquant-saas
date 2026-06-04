@@ -22,10 +22,8 @@ os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 cfo_agent = Agent(
     model=Groq(id="llama3-70b-8192"),
-    description="Você é um CFO sênior de um fundo quantitativo. Seja analítico e direto.",
-    show_tool_calls=True
+    description="Você é um CFO sênior de um fundo quantitativo. Seja analítico e direto."
 )
-
 # 3. Motor Principal
 if st.sidebar.button("☁️ Sincronizar Operação", type="primary"):
     with st.spinner("Conectando ao banco de dados e rodando Machine Learning..."):
