@@ -17,8 +17,7 @@ st.title("📊 Painel de Inteligência Executiva (Cérebro Triplo)")
 st.markdown("Visão preditiva, prescritiva e descritiva alimentada por Machine Learning.")
 
 # 2. Inicializar Agente IA (CFO)
-load_dotenv(override=True)
-groq_api_key = os.getenv("GROQ_API_KEY")
+groq_api_key = st.secrets["GROQ_API_KEY"]
 cfo_agent = None
 if groq_api_key:
     cfo_agent = Agent(
