@@ -12,6 +12,24 @@ import os
 
 # 1. Configuração da Página
 st.set_page_config(page_title="AxiQuant Admin", layout="wide", page_icon="💎")
+# 1.5 Injeção de CSS Customizado (Front-end)
+st.markdown("""
+<style>
+    /* Esconder o menu de configurações e o rodapé padrão do Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Estilizar os cartões das métricas de Faturamento/Ads */
+    div[data-testid="metric-container"] {
+        background-color: #111827;
+        border: 1px solid #1F2937;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 st.title("📊 Painel de Inteligência Executiva (Cérebro Triplo)")
 st.markdown("Visão preditiva, prescritiva e descritiva alimentada por Machine Learning.")
