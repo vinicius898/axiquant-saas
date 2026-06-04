@@ -29,7 +29,7 @@ if st.sidebar.button("☁️ Sincronizar Operação", type="primary"):
     with st.spinner("Conectando ao banco de dados e rodando Machine Learning..."):
         dados = puxar_dados_nuvem()
         
-        if dados and len(dados) > 0:
+        if dados is not None and len(dados) > 0:
             df = pd.DataFrame(dados)
             
             # Limpeza e Conversão
