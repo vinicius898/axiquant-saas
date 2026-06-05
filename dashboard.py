@@ -30,7 +30,7 @@ st.markdown("""
 # 2. Inicialização de Estado (Memória do Login)
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
-    st.session_state['usuario_email'] = "" # Nova memória para o e-mail
+    st.session_state['usuario_email'] = "" # Memória para o e-mail
 
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -53,7 +53,7 @@ if not st.session_state['autenticado']:
                         "password": senha_input
                     })
                     st.session_state['autenticado'] = True
-                    st.session_state['usuario_email'] = email_input # Salva o e-mail na memória!
+                    st.session_state['usuario_email'] = email_input 
                     st.rerun()
                 except Exception as e:
                     st.error("Falha no login. Verifique seu e-mail e senha.")
@@ -61,7 +61,8 @@ if not st.session_state['autenticado']:
 # 4. PAINEL EXECUTIVO
 else:
     st.title("📊 Painel de Inteligência Executiva (Cérebro Triplo)")
-# NOVO BOTÃO: Teste de Conexão com a Shopify
+    
+    # BOTÃO 1: Teste de Conexão com a Shopify
     if st.sidebar.button("🛍️ Puxar Vendas da Shopify"):
         with st.spinner("Acessando servidores da Shopify no Canadá..."):
             pedidos, mensagem = conectar_api_shopify(st.session_state['usuario_email'])
@@ -70,32 +71,34 @@ else:
                 st.sidebar.success(f"Conexão Perfeita! {len(pedidos)} pedidos encontrados.")
                 st.write("### 📦 Raio-X da Shopify (Em Tempo Real)")
                 st.success("O seu Robô entrou na loja, passou pela segurança e trouxe estes dados puros direto do caixa!")
-                # Mostra o primeiro pedido na tela só para provarmos que pegamos os dados
+                
                 if len(pedidos) > 0:
                     st.json(pedidos[0])
                 else:
                     st.warning("A conexão funcionou, mas a loja de teste ainda não gerou pedidos.")
-                st.stop() # Pausa a tela aqui para focar só na Shopify
+                st.stop() 
             else:
                 st.sidebar.error(f"Falha na conexão: {mensagem}")
                 
     st.sidebar.divider()
     
+    # BOTÃO 2: Sair do Sistema
     if st.sidebar.button("🚪 Sair do Sistema"):
         st.session_state['autenticado'] = False
         st.session_state['usuario_email'] = ""
         st.rerun()
 
+    # CONFIGURAÇÃO DO AGENTE DE IA
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
     cfo_agent = Agent(
         model=Groq(id="llama-3.3-70b-versatile"),
         description="Você é um CFO sênior de um fundo quantitativo. Seja analítico e direto."
     )
 
+    # BOTÃO 3: Motor Principal de Machine Learning
     if st.sidebar.button("☁️ Sincronizar Operação", type="primary"):
         with st.spinner("Processando dados exclusivos da sua loja..."):
             
-            # O SEGREDO ESTÁ AQUI: Passamos o e-mail para buscar só os dados deste cliente!
             dados = puxar_dados_nuvem(st.session_state['usuario_email']) 
             
             if dados is not None and len(dados) > 0:
