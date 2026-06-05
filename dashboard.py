@@ -4,7 +4,7 @@ import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from conexao_db import puxar_dados_nuvem
+from conexao_db import puxar_dados_nuvem, conectar_api_shopify
 from agno.agent import Agent
 from agno.models.groq import Groq
 from supabase import create_client
@@ -61,6 +61,25 @@ if not st.session_state['autenticado']:
 # 4. PAINEL EXECUTIVO
 else:
     st.title("📊 Painel de Inteligência Executiva (Cérebro Triplo)")
+# NOVO BOTÃO: Teste de Conexão com a Shopify
+    if st.sidebar.button("🛍️ Puxar Vendas da Shopify"):
+        with st.spinner("Acessando servidores da Shopify no Canadá..."):
+            pedidos, mensagem = conectar_api_shopify(st.session_state['usuario_email'])
+            
+            if pedidos is not None:
+                st.sidebar.success(f"Conexão Perfeita! {len(pedidos)} pedidos encontrados.")
+                st.write("### 📦 Raio-X da Shopify (Em Tempo Real)")
+                st.success("O seu Robô entrou na loja, passou pela segurança e trouxe estes dados puros direto do caixa!")
+                # Mostra o primeiro pedido na tela só para provarmos que pegamos os dados
+                if len(pedidos) > 0:
+                    st.json(pedidos[0])
+                else:
+                    st.warning("A conexão funcionou, mas a loja de teste ainda não gerou pedidos.")
+                st.stop() # Pausa a tela aqui para focar só na Shopify
+            else:
+                st.sidebar.error(f"Falha na conexão: {mensagem}")
+                
+    st.sidebar.divider()
     
     if st.sidebar.button("🚪 Sair do Sistema"):
         st.session_state['autenticado'] = False
