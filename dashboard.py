@@ -4,8 +4,7 @@ import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify
-from agno.agent import Agent
+from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify, sincronizar_facebook_adsfrom agno.agent import Agent
 from agno.models.groq import Groq
 from supabase import create_client
 import os
@@ -69,6 +68,18 @@ else:
             if sucesso:
                 st.sidebar.success(mensagem)
                 st.toast("Dados da Shopify integrados!", icon="🛍️")
+            else:
+                st.sidebar.error(f"Erro: {mensagem}")
+                
+    st.sidebar.divider()
+
+    # BOTÃO NEW: Robô Sincronizador do Facebook Ads
+    if st.sidebar.button("🔵 Sincronizar Facebook Ads"):
+        with st.spinner("Acessando servidores da Meta e cruzando investimentos..."):
+            sucesso, mensagem = sincronizar_facebook_ads(st.session_state['usuario_email'])
+            if sucesso:
+                st.sidebar.success(mensagem)
+                st.toast("Investimentos do Facebook Ads sincronizados!", icon="🔵")
             else:
                 st.sidebar.error(f"Erro: {mensagem}")
                 
