@@ -128,7 +128,7 @@ def sincronizar_facebook_ads(email_usuario):
             data_dia = registro['data']
             faturamento = float(registro['faturamento'])
             
-            # Se houver gasto real na Meta, usamos. Se a conta for nova/zerada, calibramos uma simulação real executiva
+            # Se houver gasto real na Meta, usamos. Se não, calibramos a simulação
             if data_dia in gastos_reais:
                 gasto_final = gastos_reais[data_dia]
             else:
