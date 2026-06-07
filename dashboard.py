@@ -4,7 +4,7 @@ import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from conexao_db import puxar_dados_nuvem, conectar_api_shopify
+from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify
 from agno.agent import Agent
 from agno.models.groq import Groq
 from supabase import create_client
@@ -30,7 +30,7 @@ st.markdown("""
 # 2. Inicialização de Estado (Memória do Login)
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
-    st.session_state['usuario_email'] = "" # Memória para o e-mail
+    st.session_state['usuario_email'] = ""
 
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
@@ -60,42 +60,32 @@ if not st.session_state['autenticado']:
 
 # 4. PAINEL EXECUTIVO
 else:
-    st.title("📊 Painel de Inteligência Executiva (Cérebro Triplo)")
+    st.title("📊 Painel de Inteligência Executiva")
     
-    # BOTÃO 1: Teste de Conexão com a Shopify
-    if st.sidebar.button("🛍️ Puxar Vendas da Shopify"):
-        with st.spinner("Acessando servidores da Shopify no Canadá..."):
-            pedidos, mensagem = conectar_api_shopify(st.session_state['usuario_email'])
-            
-            if pedidos is not None:
-                st.sidebar.success(f"Conexão Perfeita! {len(pedidos)} pedidos encontrados.")
-                st.write("### 📦 Raio-X da Shopify (Em Tempo Real)")
-                st.success("O seu Robô entrou na loja, passou pela segurança e trouxe estes dados puros direto do caixa!")
-                
-                if len(pedidos) > 0:
-                    st.json(pedidos[0])
-                else:
-                    st.warning("A conexão funcionou, mas a loja de teste ainda não gerou pedidos.")
-                st.stop() 
+    # BOTÃO 1: Robô Sincronizador Ativo da Shopify
+    if st.sidebar.button("🛍️ Sincronizar Shopify"):
+        with st.spinner("Varrendo API da Shopify e atualizando Supabase..."):
+            sucesso, mensagem = sincronizar_loja_shopify(st.session_state['usuario_email'])
+            if sucesso:
+                st.sidebar.success(mensagem)
+                st.toast("Dados da Shopify integrados!", icon="🛍️")
             else:
-                st.sidebar.error(f"Falha na conexão: {mensagem}")
+                st.sidebar.error(f"Erro: {mensagem}")
                 
     st.sidebar.divider()
     
-    # BOTÃO 2: Sair do Sistema
     if st.sidebar.button("🚪 Sair do Sistema"):
         st.session_state['autenticado'] = False
         st.session_state['usuario_email'] = ""
         st.rerun()
 
-    # CONFIGURAÇÃO DO AGENTE DE IA
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
     cfo_agent = Agent(
         model=Groq(id="llama-3.3-70b-versatile"),
         description="Você é um CFO sênior de um fundo quantitativo. Seja analítico e direto."
     )
 
-    # BOTÃO 3: Motor Principal de Machine Learning
+    # BOTÃO PRINCIPAL: Motor de Análise e IA
     if st.sidebar.button("☁️ Sincronizar Operação", type="primary"):
         with st.spinner("Processando dados exclusivos da sua loja..."):
             
@@ -110,14 +100,38 @@ else:
                 
                 df = df.sort_values('data').dropna()
                 
-                st.success(f"Bem-vindo(a)! Mostrando dados isolados para a Empresa ID: {df['empresa_id'].iloc[0]}")
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Faturamento Total", f"R$ {df['faturamento'].sum():,.2f}")
-                col2.metric("Investimento Total (Ads)", f"R$ {df['investimento_ads'].sum():,.2f}")
-                col3.metric("Ticket Médio", f"R$ {df['ticket_medio'].mean():,.2f}")
-                col4.metric("Dias Analisados", len(df))
+                st.success(f"Mostrando dados isolados para a Empresa ID: {df['empresa_id'].iloc[0]}")
+                
+                # --- MATEMÁTICA DOS KPIs DE NEGÓCIO ---
+                faturamento_total = df['faturamento'].sum()
+                investimento_total = df['investimento_ads'].sum()
+                vendas_totais = df['vendas_totais'].sum()
+                leads_totais = df['leads'].sum()
+                ticket_medio = df['ticket_medio'].mean()
+                churn_medio = df['churn'].mean()
+                
+                roas = faturamento_total / investimento_total if investimento_total > 0 else 0
+                cac = investimento_total / vendas_totais if vendas_totais > 0 else 0
+                taxa_conversao = (vendas_totais / leads_totais) * 100 if leads_totais > 0 else 0
+
+                st.markdown("### 📈 Raio-X Operacional e Financeiro")
+                
+                kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+                kpi1.metric("Faturamento Total", f"R$ {faturamento_total:,.2f}")
+                kpi2.metric("ROAS (Retorno Ads)", f"{roas:.2f}x")
+                kpi3.metric("CAC (Custo Aquisição)", f"R$ {cac:,.2f}")
+                kpi4.metric("Ticket Médio", f"R$ {ticket_medio:,.2f}")
+                
+                st.write("") 
+                kpi5, kpi6, kpi7, kpi8 = st.columns(4)
+                kpi5.metric("Vendas Totais", f"{int(vendas_totais)}")
+                kpi6.metric("Leads Gerados", f"{int(leads_totais)}")
+                kpi7.metric("Taxa de Conversão", f"{taxa_conversao:.2f}%")
+                kpi8.metric("Churn Médio (Cancelamento)", f"{churn_medio:.2f}%")
+                
                 st.divider()
 
+                # --- O CÉREBRO TRIPLO ---
                 st.header("🧠 Motores de Machine Learning")
                 tab1, tab2, tab3 = st.tabs(["Regressão (Causas)", "Classificação (Importância)", "Clusterização (Padrões)"])
                 peso_ads = 0
@@ -149,8 +163,13 @@ else:
                 st.divider()
                 st.subheader("🤖 Parecer do CFO Artificial")
                 if cfo_agent:
-                    with st.spinner("Analisando matrizes..."):
-                        prompt_cfo = f"Dados globais: Faturamento R$ {df['faturamento'].sum():.2f}, Ads R$ {df['investimento_ads'].sum():.2f}. Multiplicador Ads: {peso_ads:.2f}. Hierarquia sucesso: {importancias_lista}. Escreva relatório de 2 parágrafos."
+                    with st.spinner("Analisando matrizes e métricas de negócio..."):
+                        prompt_cfo = f"""
+                        Dados globais: Faturamento R$ {faturamento_total:.2f}, Ads R$ {investimento_total:.2f}. 
+                        Métricas Chave: ROAS de {roas:.2f}x, CAC de R$ {cac:.2f}, Conversão de {taxa_conversao:.2f}%, Churn de {churn_medio:.2f}%.
+                        Motor Preditivo: O multiplicador Ads é {peso_ads:.2f}. Hierarquia sucesso: {importancias_lista}. 
+                        Escreva um relatório executivo de 2 parágrafos.
+                        """
                         st.write(cfo_agent.run(prompt_cfo).content)
             else:
                 st.error("Nenhum dado encontrado para a sua loja.")
