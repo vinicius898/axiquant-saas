@@ -68,7 +68,7 @@ if not st.session_state['autenticado']:
                         resposta = supabase.auth.sign_up({"email": email_cad, "password": senha_cad})
                         st.success("Conta criada com sucesso! Vá na aba 'Já tenho conta' e faça seu primeiro login.")
                     except Exception as e:
-                        st.error(f"Erro ao criar conta. Tente novamente.")
+                        st.error(f"O Supabase relatou o seguinte erro: {e}")
 
 # 4. ÁREA LOGADA (ONBOARDING OU PAINEL)
 else:
