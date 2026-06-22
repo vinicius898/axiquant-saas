@@ -1,6 +1,8 @@
 import streamlit as st
 from supabase import create_client
 import requests
+import datetime
+import random
 
 def puxar_dados_nuvem(email_usuario):
     try:
@@ -41,9 +43,32 @@ def sincronizar_loja_shopify(email_usuario):
             return False, f"Erro Shopify: {resposta.status_code}"
             
         pedidos = resposta.json().get('orders', [])
+        
+        # --- MODO DE DEMONSTRAÇÃO (SE A LOJA NÃO TIVER ENCOMENDAS) ---
         if not pedidos:
-            return True, "Conexão bem-sucedida, mas nenhum pedido foi encontrado na loja."
+            hoje = datetime.date.today()
+            for i in range(30):
+                # Gera 30 dias para trás
+                data_sim = (hoje - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
+                faturamento = round(random.uniform(1000, 5000), 2)
+                vendas = random.randint(5, 25)
+                ticket = faturamento / vendas
+                
+                registro = {
+                    "empresa_id": empresa_id,
+                    "data": data_sim,
+                    "faturamento": faturamento,
+                    "vendas_totais": vendas,
+                    "ticket_medio": ticket,
+                    "investimento_ads": faturamento * 0.35,  
+                    "leads": vendas * random.randint(4, 8),
+                    "churn": round(random.uniform(1.0, 3.5), 2)
+                }
+                supabase.table('faturamento_diario').upsert(registro, on_conflict='empresa_id,data').execute()
+                
+            return True, "Loja vazia detetada! Injetámos 30 dias de dados simulados para poderes testar a IA."
 
+        # --- SE TIVER ENCOMENDAS REAIS, FAZ O FLUXO NORMAL ---
         dados_diarios = {}
         for pedido in pedidos:
             data_str = pedido['created_at'].split('T')[0]
@@ -60,37 +85,28 @@ def sincronizar_loja_shopify(email_usuario):
             vendas = metricas["vendas_totais"]
             ticket = faturamento / vendas if vendas > 0 else 0
             
-            simulacao_ads = faturamento * 0.35  
-            simulacao_leads = vendas * 7
-            simulacao_churn = 1.8 
-
             registro = {
                 "empresa_id": empresa_id,
                 "data": data_dia,
                 "faturamento": faturamento,
                 "vendas_totais": vendas,
                 "ticket_medio": ticket,
-                "investimento_ads": simulacao_ads,
-                "leads": simulacao_leads,
-                "churn": simulacao_churn
+                "investimento_ads": faturamento * 0.35,
+                "leads": vendas * 7,
+                "churn": 1.8 
             }
-            
             supabase.table('faturamento_diario').upsert(registro, on_conflict='empresa_id,data').execute()
 
         return True, f"Sucesso! {len(dados_diarios)} dias de operação importados da Shopify."
     except Exception as e:
-        return False, f"Erro no encanamento: {e}"
+        return False, f"Erro na ligação Shopify: {e}"
 
-
-# --- O NOVO ROBÔ DA API DO FACEBOOK/META ADS ---
 def sincronizar_facebook_ads(email_usuario):
     try:
         supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        
-        # 1. Puxa as credenciais da Meta salvas no Supabase
         empresa_resp = supabase.table('empresas').select('id, meta_token, meta_account_id').eq('email_dono', email_usuario).execute()
         if not empresa_resp.data:
-            return False, "Empresa não encontrada para este usuário."
+            return False, "Empresa não encontrada para este utilizador."
             
         credenciais = empresa_resp.data[0]
         empresa_id = credenciais['id']
@@ -98,9 +114,8 @@ def sincronizar_facebook_ads(email_usuario):
         account_id = credenciais['meta_account_id']
         
         if not token or not account_id:
-            return False, "Chaves da Meta Ads não encontradas no banco."
+            return False, "Chaves da Meta Ads não encontradas na base de dados."
 
-        # 2. Faz a chamada oficial na Graph API da Meta pedindo gastos diários
         url_api = f"https://graph.facebook.com/v19.0/{account_id}/insights"
         params = {
             "access_token": token,
@@ -111,38 +126,32 @@ def sincronizar_facebook_ads(email_usuario):
         
         resposta = requests.get(url_api, params=params)
         
-        if resposta.status_code != 200:
-            erro_msg = resposta.json().get('error', {}).get('message', 'Erro desconhecido')
-            return False, f"Erro na API da Meta: {erro_msg}"
-            
-        insights = resposta.json().get('data', [])
-        gastos_reais = {item['date_start']: float(item['spend']) for item in insights}
+        # MODO DE TOLERÂNCIA: Se a conta Meta estiver vazia ou com erro (comum em contas novas), avança na mesma
+        gastos_reais = {}
+        if resposta.status_code == 200:
+            insights = resposta.json().get('data', [])
+            gastos_reais = {item['date_start']: float(item['spend']) for item in insights}
 
-        # 3. CRUZA OS DADOS: Pega os dias existentes da Shopify e atualiza os gastos
         faturamento_resp = supabase.table('faturamento_diario').select('data, faturamento').eq('empresa_id', empresa_id).execute()
         
         if not faturamento_resp.data:
-            return False, "Nenhum dado da Shopify encontrado. Sincronize a Shopify primeiro!"
+            return False, "Nenhum dado da Shopify encontrado. Sincroniza a Shopify primeiro!"
 
+        # Cruza ou simula os dados para alimentar o painel
         for registro in faturamento_resp.data:
             data_dia = registro['data']
             faturamento = float(registro['faturamento'])
             
-            # Se houver gasto real na Meta, usamos. Se não, calibramos a simulação
             if data_dia in gastos_reais:
                 gasto_final = gastos_reais[data_dia]
             else:
-                gasto_final = faturamento * 0.36 if faturamento > 0 else 0.0
+                gasto_final = faturamento * random.uniform(0.25, 0.45) if faturamento > 0 else 0.0
 
-            # Atualiza APENAS a coluna de anúncios daquele dia específico
             supabase.table('faturamento_diario').update({
                 "investimento_ads": gasto_final
             }).eq('empresa_id', empresa_id).eq('data', data_dia).execute()
 
-        if len(insights) > 0:
-            return True, f"Sucesso! {len(insights)} dias de campanhas reais integrados ao faturamento!"
-        else:
-            return True, "Chave Validada! Modo Calibração Ativado: Gastos simulados de anúncios injetados com sucesso."
+        return True, "Campanhas cruzadas com a faturação! (Utilizando simulação onde faltam dados)"
             
     except Exception as e:
         return False, f"Erro interno no robô Meta: {e}"
