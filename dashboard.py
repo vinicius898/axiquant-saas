@@ -34,6 +34,9 @@ if 'autenticado' not in st.session_state:
 
 supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
+# LINK DE PAGAMENTO OFICIAL DO STRIPE
+STRIPE_LINK = "https://buy.stripe.com/test_dRm4gy9uy5xC7y7bPDdAk00"
+
 # 3. TELA DE ACESSO (LOGIN / CADASTRO)
 if not st.session_state['autenticado']:
     col1, col2, col3 = st.columns([1, 1, 1])
@@ -70,22 +73,60 @@ if not st.session_state['autenticado']:
                     except Exception as e:
                         st.error(f"O Supabase relatou o seguinte erro: {e}")
 
-# 4. ÁREA LOGADA (ONBOARDING OU PAINEL)
+# 4. ÁREA LOGADA (PAYWALL, ONBOARDING OU PAINEL)
 else:
-    # Verifica se a empresa existe no banco; se não, cria na hora (A mágica do SaaS)
+    # Captura parâmetros da URL (Se o cliente voltou do Stripe aprovado)
+    parametros_url = st.query_params
+    retorno_pagamento = parametros_url.get("pagamento", None)
+    
+    # Busca ou cria a empresa do usuário logado
     empresa_resp = supabase.table('empresas').select('*').eq('email_dono', st.session_state['usuario_email']).execute()
     if not empresa_resp.data:
-        supabase.table('empresas').insert({"email_dono": st.session_state['usuario_email']}).execute()
+        # Se veio da stripe aprovado, já cria com a assinatura ativa
+        if retorno_pagamento == "aprovado":
+            supabase.table('empresas').insert({"email_dono": st.session_state['usuario_email'], "assinatura_ativa": True}).execute()
+        else:
+            supabase.table('empresas').insert({"email_dono": st.session_state['usuario_email']}).execute()
         empresa_resp = supabase.table('empresas').select('*').eq('email_dono', st.session_state['usuario_email']).execute()
     
     empresa = empresa_resp.data[0]
     
-    # 4.1 TELA DE ONBOARDING (Se estiver faltando alguma chave)
-    if not empresa.get('shopify_token') or not empresa.get('meta_token'):
+    # Se o usuário voltou do Stripe com sucesso mas o banco ainda diz falso, nós atualizamos agora!
+    if retorno_pagamento == "aprovado" and not empresa.get('assinatura_ativa', False):
+        supabase.table('empresas').update({"assinatura_ativa": True}).eq('email_dono', st.session_state['usuario_email']).execute()
+        empresa['assinatura_ativa'] = True
+        st.toast("Pagamento Identificado! Obrigado por assinar.", icon="🎉")
+
+    # --- 4.1 BARREIRA DE PAGAMENTO (PAYWALL) ---
+    if not empresa.get('assinatura_ativa', False):
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.write("")
+            st.title("🔒 Ative sua Assinatura")
+            st.markdown("### Plano AxiQuant Pro — R$ 57,00/mês")
+            st.write("Libere o cérebro financeiro da sua loja e pare de queimar dinheiro em anúncios no escuro.")
+            
+            st.markdown("""
+            * 📊 **Métricas Avançadas:** ROAS real, CAC e Churn calculados em tempo real.
+            * 🧠 **Machine Learning:** Algoritmos preditivos cruzando dados de anúncios e vendas.
+            * 🤖 **CFO com Inteligência Artificial:** Relatórios diários automáticos para tomada de decisão.
+            """)
+            
+            st.divider()
+            st.link_button("💳 Assinar via Cartão de Crédito (Stripe)", STRIPE_LINK, type="primary", use_container_width=True)
+            st.write("")
+            
+            if st.button("🚪 Sair da Conta", use_container_width=True):
+                st.session_state['autenticado'] = False
+                st.session_state['usuario_email'] = ""
+                st.rerun()
+
+    # --- 4.2 TELA DE ONBOARDING (Se pagou, mas falta configurar chaves) ---
+    elif not empresa.get('shopify_token') or not empresa.get('meta_token'):
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.title("🚀 Bem-vindo ao AxiQuant!")
-            st.info("Para ativarmos o seu CFO Artificial, precisamos conectar a sua operação.")
+            st.info("Sua assinatura está ativa! Para ativarmos o seu CFO Artificial, conecte as chaves da sua operação abaixo.")
             
             with st.form("form_integracao"):
                 st.write("### 🛍️ Integração Shopify")
@@ -114,7 +155,7 @@ else:
             st.session_state['usuario_email'] = ""
             st.rerun()
             
-    # 4.2 O PAINEL EXECUTIVO PRINCIPAL (Se as chaves estiverem configuradas)
+    # --- 4.3 O PAINEL EXECUTIVO PRINCIPAL (Acesso Total Liberado) ---
     else:
         st.title("📊 Painel de Inteligência Executiva")
         
