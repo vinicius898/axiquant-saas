@@ -52,3 +52,20 @@ CREATE TABLE empresas (
     assinatura_ativa BOOLEAN DEFAULT FALSE,
     data_expiracao_trial TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days')
 );
+
+## 🖥️ Como Executar o Projeto Localmente
+
+1. **Clonar o Repositório:**
+```bash
+   git clone [https://github.com/seu-usuario/axiquant-saas.git](https://github.com/seu-usuario/axiquant-saas.git)
+   cd axiquant-saas
+
+pip install -r requirements.txt
+
+SUPABASE_URL = "[https://seu-projeto.supabase.co](https://seu-projeto.supabase.co)"
+   SUPABASE_KEY = "sua-chave-publica-anon"
+   GROQ_API_KEY = "gsk_sua-chave-da-groq"
+
+streamlit run dashboard.py
+
+
