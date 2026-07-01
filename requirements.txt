@@ -8,3 +8,5 @@ groq
 supabase
 scikit-learn
 xgboost==2.0.3
+openai
+portkey-ai
