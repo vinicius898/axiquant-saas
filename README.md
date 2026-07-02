@@ -3,24 +3,26 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase%20%2F%20PostgreSQL-3ECF8E.svg)](https://supabase.com/)
-[![Stripe](https://img.shields.io/badge/Billing-Stripe%20Payment%20Links-635BFF.svg)](https://stripe.com/)
-[![Groq](https://img.shields.io/badge/AI-Llama%203.3%2070B%20%2F%20Groq-F5A623.svg)](https://groq.com/)
+[![Portkey](https://img.shields.io/badge/LLMOps-Portkey%20Gateway-00F5D4.svg)](https://portkey.ai/)
+[![Stripe](https://img.shields.io/badge/Billing-Stripe-635BFF.svg)](https://stripe.com/)
+[![Groq](https://img.shields.io/badge/AI-Llama%203.3%2070B-F5A623.svg)](https://groq.com/)
 
-O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *Multi-tenant* desenvolvida para atuar como o cérebro financeiro e **CFO Artificial** de operações de e-commerce. O sistema centraliza de forma segura dados de faturamento e aquisição de clientes através de integrações automáticas com a **Shopify API** e **Meta Graph API (Facebook Ads)**, aplicando algoritmos avançados de *Machine Learning* e inteligência artificial preditiva para guiar a tomada de decisão executiva e escalar a margem de lucro líquida dos lojistas.
+O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *Multi-tenant* desenvolvida para atuar como um **CFO Quantitativo** e hub de inteligência unificada para negócios. O sistema consolida de forma não-destrutiva métricas de aquisição de tráfego pago via **Meta Graph API** e dados de faturamento, aplicando uma esteira de modelagem macroeconômica baseada em **DRE Dinâmico**. Utilizando algoritmos de *Machine Learning* estatístico e redes agênticas, o sistema mitiga métricas de vaidade, isolando a lucratividade líquida real e projetando o fluxo de caixa para guiar tomadas de decisão táticas de alta gerência.
 
 ---
 
 ## 🚀 Funcionalidades Principais
 
 * **Arquitetura Multi-tenant Segura:** Isolamento estrito de dados por cliente através de cofre relacional no PostgreSQL, garantindo privacidade e conformidade técnica.
-* **Onboarding Automatizado de APIs:** Fluxo de sincronização assíncrona com autenticação dinâmica via tokens privados da Shopify e IDs numéricos de contas de anúncios Meta (`act_...`).
-* **Paywall Integrada & Mecanismo de Trial:** Sistema de *Product-Led Growth (PLG)* com **7 dias de teste gratuito automatizado** controlado via banco de dados (`data_expiracao_trial`) e transição imediata para barreira de checkout hospedada de nível mundial via **Stripe Payment Links**.
-* **Motores Analíticos e Estatísticos:**
-  * *Causas (Regressão Linear OLS):* Identificação do peso exato de variáveis operacionais (Leads, Investimento em Ads, Ticket Médio) no faturamento final.
-  * *Importância (Random Forest Classifier):* Árvore de decisão estruturada para mapear qual métrica isolada possui o maior poder estatístico de alavancar ou colapsar o caixa da empresa.
-  * *Padrões (K-Means Clustering):* Agrupamento comportamental automatizado de dias operacionais em perfis corporativos (*Dias de Ouro* vs *Dias de Alerta*).
-* **Previsão de Futuro (XGBoost Regressor):** Algoritmo de inteligência preditiva estruturado com *Time Series Forecasting* para projetar o faturamento exato dos próximos 7 dias com base em sazonalidades semanais e dados passados (`lag features`).
-* **CFO Artificial Agêntica:** Agente autônomo baseado no framework **Agno** alimentado pelo modelo de última geração **Llama 3.3 70B (via Groq API)**. O agente emite pareceres econômicos detalhados e possui o botão dinâmico **"🎯 Transformar Parecer em Plano de Ação"**, que converte diagnósticos numéricos em 3 tarefas táticas imediatas para o usuário aplicar na sua operação.
+* **Motor de DRE Dinâmico Customizável:** Interface analítica para inserção de parâmetros de custos invisíveis estruturais (CPV %, taxas de gateway de pagamento, impostos médios e custos fixos rateados) com cálculo em tempo real de Lucro Líquido.
+* **Infraestrutura LLMOps Imortal (Portkey Gateway):** Roteamento agêntico blindado contra *Rate Limits* (Erro 429) utilizando estratégias avançadas de **Fallback assíncrono**. Se o cluster principal do Groq falhar ou atingir o teto de requisições, o tráfego é desviado de forma transparente para contingências (OpenAI/GPT-4o-mini).
+* **Paywall Integrada & Mecanismo de Trial:** Sistema de *Product-Led Growth (PLG)* com **7 dias de teste gratuito automatizado** controlado via banco de dados (`data_expiracao_trial`) e transição imediata para barreira de checkout hospedada via **Stripe Payment Links**.
+* **Motores Analíticos e Estatísticos de Margem Real:**
+  * *Causas (Regressão Linear OLS):* Identificação do impacto financeiro direto de variáveis operacionais (Leads, Tráfego Pago, Ticket Médio) focado exclusivamente na variação do **Lucro Líquido**.
+  * *Importância (Random Forest Classifier):* Árvore de decisão estruturada para mapear qual métrica isolada possui o maior poder estatístico de empurrar a empresa para a lucratividade acima da média.
+  * *Padrões Avançados (Gaussian Mixture Models - GMM):* Clusterização probabilística baseada em curvas normais (Gaussianas), substituindo agrupamentos rígidos por perfis reais de comportamento financeiro (*Dias de Risco*, *Estabilidade* e *Dias de Ouro*).
+* **Previsão de Fluxo de Caixa (XGBoost Regressor):** Algoritmo de inteligência preditiva estruturado com *Time Series Forecasting* para projetar o lucro líquido cumulativo dos próximos 7 dias com base em sazonalidades semanais e dados passados (`lag features`).
+* **CFO Artificial Agêntica:** Agente autônomo baseado no framework **Agno** alimentado pelo modelo de última geração **Llama 3.3 70B**. O agente possui o botão dinâmico **"🎯 Transformar Parecer em Plano de Ação"**, que converte diagnósticos numéricos em 3 tarefas táticas imediatas sem quebrar o estado de renderização da página.
 
 ---
 
@@ -29,15 +31,14 @@ O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *
 * **Linguagem Principal:** Python 3.10+
 * **Interface do Usuário (Frontend):** Streamlit com injeção de CSS Customizado para Dark Mode de padrão empresarial.
 * **Banco de Dados Relacional:** Supabase (PostgreSQL Cloud) rodando triggers de identidade, restrições exclusivas de chaves primárias e políticas complexas de segurança de dados.
-* **Processamento de Dados & IA:** Pandas, NumPy, Statsmodels, Scikit-learn, XGBoost, Agno (AI Framework), Groq SDK.
+* **Processamento de Dados & IA:** Pandas, NumPy, Statsmodels, Scikit-learn (RandomForest, GMM), XGBoost, Agno (AI Framework), Portkey SDK, OpenAI.
 * **Gateway de Cobrança:** Stripe API Client + Stripe Checkout Engines.
-* **Comunicação Base:** Requests HTTP para consumo assíncrono de Webhooks e REST APIs.
 
 ---
 
 ## 📐 Engenharia de Banco de Dados (Schema Supabase)
 
-O ecossistema utiliza tabelas relacionais altamente otimizadas e protegidas contra duplicidade de dados através de travas exclusivas (`constraints`):
+O ecossistema utiliza tabelas relacionais altamente otimizadas e prontas para a expansão de múltiplos canais de aquisição e marketing:
 
 ### Tabela: `empresas`
 Responsável por gerenciar os tenants corporativos, credenciais de APIs criptografadas e estado financeiro de acesso ao SaaS.
@@ -52,20 +53,3 @@ CREATE TABLE empresas (
     assinatura_ativa BOOLEAN DEFAULT FALSE,
     data_expiracao_trial TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days')
 );
-
-## 🖥️ Como Executar o Projeto Localmente
-
-1. **Clonar o Repositório:**
-```bash
-   git clone [https://github.com/seu-usuario/axiquant-saas.git](https://github.com/seu-usuario/axiquant-saas.git)
-   cd axiquant-saas
-
-pip install -r requirements.txt
-
-SUPABASE_URL = "[https://seu-projeto.supabase.co](https://seu-projeto.supabase.co)"
-   SUPABASE_KEY = "sua-chave-publica-anon"
-   GROQ_API_KEY = "gsk_sua-chave-da-groq"
-
-streamlit run dashboard.py
-
-
