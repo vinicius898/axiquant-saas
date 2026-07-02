@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import statsmodels.api as sm
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.cluster import KMeans
+from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 import xgboost as xgb
 from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify, sincronizar_facebook_ads
@@ -10,7 +10,6 @@ from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from supabase import create_client
 import os
-import json
 from openai import OpenAI
 from portkey_ai import PORTKEY_GATEWAY_URL, createHeaders
 
@@ -49,7 +48,7 @@ if not st.session_state['autenticado']:
     with col2:
         st.write("")
         st.title("💎 AxiQuant SaaS")
-        st.markdown("O cérebro financeiro do seu e-commerce.")
+        st.markdown("O cérebro financeiro do seu negócio.")
         
         tab_login, tab_cadastro = st.tabs(["🔒 Já tenho conta", "✨ Criar minha conta"])
         
@@ -127,8 +126,8 @@ else:
         with col2:
             st.title("🚀 Bem-vindo ao AxiQuant!")
             with st.form("form_integracao"):
-                shop_url = st.text_input("URL Shopify")
-                shop_token = st.text_input("Token Shopify", type="password")
+                shop_url = st.text_input("URL Shopify (Deixe em branco se não usar)")
+                shop_token = st.text_input("Token Shopify (Deixe em branco se não usar)", type="password")
                 meta_id = st.text_input("ID Meta Ads")
                 meta_token = st.text_input("Token Meta", type="password")
                 if st.form_submit_button("Salvar Chaves", type="primary", use_container_width=True):
@@ -139,7 +138,6 @@ else:
     else:
         st.title("📊 Painel de Inteligência Executiva & CFO Quantitativo")
         
-        # --- ENGENHARIA DE CUSTOS NA SIDEBAR ---
         st.sidebar.header("⚙️ Parâmetros Financeiros (DRE)")
         pct_cpv = st.sidebar.slider("Custo de Produto/Serviço (CPV %)", 0, 100, 30) / 100
         pct_gateway = st.sidebar.slider("Taxa de Cartão/Gateway (%)", 0.0, 15.0, 5.0) / 100
@@ -164,29 +162,15 @@ else:
             st.session_state['dados_carregados'] = False
             st.rerun()
 
-        # --- INTEGRAÇÃO PORTKEY AI ---
+        # --- INTEGRAÇÃO PORTKEY AI (CONFIGURAÇÃO BLINDADA) ---
         chave_portkey = st.secrets.get("PORTKEY_API_KEY", "")
-        portkey_config = {
-            "strategy": {"mode": "fallback"},
-            "targets": [
-                {
-                    "provider": "groq",
-                    "api_key": st.secrets.get("GROQ_API_KEY", ""),
-                    "override_params": {"model": "llama-3.3-70b-versatile"}
-                },
-                {
-                    "provider": "openai",
-                    "api_key": st.secrets.get("OPENAI_API_KEY", "sk-dummy"),
-                    "override_params": {"model": "gpt-4o-mini"}
-                }
-            ]
-        }
-        portkey_headers = createHeaders(api_key=chave_portkey, config=json.dumps(portkey_config))
+        # Usando o slug que você gerou no painel da Portkey
+        portkey_headers = createHeaders(api_key=chave_portkey, config="pc-portke-e6706a")
         portkey_client = OpenAI(api_key="dummy_key", base_url=PORTKEY_GATEWAY_URL, default_headers=portkey_headers)
         
         cfo_agent = Agent(
             model=OpenAIChat(id="llama-3.3-70b-versatile", client=portkey_client),
-            description="Você é um CFO sênior de e-commerce e fundos quantitativos. Traduza métricas complexas e DREs para estratégias de maximização de lucro líquido."
+            description="Você é um CFO sênior quantitativo. Traduza métricas complexas e DREs para estratégias de maximização de lucro líquido."
         )
 
         if st.sidebar.button("☁️ Sincronizar Operação", type="primary"):
@@ -206,16 +190,13 @@ else:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
             df = df.sort_values('data').dropna()
             
-            # --- MOTOR DE CÁLCULO FINANCEIRO AVANÇADO (DRE DINÂMICO) ---
+            # Cálculo de Lucro Líquido Real
             df['custo_produtos'] = df['faturamento'] * pct_cpv
             df['taxas_gateway'] = df['faturamento'] * pct_gateway
             df['impostos'] = df['faturamento'] * pct_imposto
             df['custo_fixo_rateado'] = custo_fixo_diario
-            
-            # Cálculo final do Lucro Líquido Real por dia
             df['lucro_liquido'] = df['faturamento'] - (df['investimento_ads'] + df['custo_produtos'] + df['taxas_gateway'] + df['impostos'] + df['custo_fixo_rateado'])
             
-            # KPIs Globais Unificados
             fat_total = df['faturamento'].sum()
             inv_total = df['investimento_ads'].sum()
             lucro_total = df['lucro_liquido'].sum()
@@ -231,38 +212,50 @@ else:
             st.divider()
 
             st.header("🧠 Motores de Machine Learning Aplicados")
-            tab1, tab2, tab3, tab4 = st.tabs(["Causas (Regressão)", "Importância (Classificação)", "Padrões (Cluster)", "🔮 Previsão (Futuro)"])
+            tab1, tab2, tab3, tab4 = st.tabs(["Causas (Regressão)", "Importância (Classificação)", "Padrões (GMM)", "🔮 Previsão (Futuro)"])
             
             peso_ads = 0
             importancias_lista = ""
             
             with tab1:
                 try:
-                    # Rodando a regressão para entender o impacto direto NO LUCRO LÍQUIDO, não apenas no faturamento
                     X_reg = sm.add_constant(df[['investimento_ads', 'leads', 'ticket_medio']])
                     mod = sm.OLS(df['lucro_liquido'], X_reg).fit()
                     peso_ads = mod.params.get('investimento_ads', 0)
-                    st.info(f"💡 **O que isso significa na prática?**\nO algoritmo calculou que, após pagar fornecedores, impostos e gateway, cada **R$ 1,00** investido em anúncios gera **R$ {peso_ads:.2f}** de **Lucro Líquido** real para a sua empresa.")
-                    st.dataframe(pd.DataFrame({"Métrica": mod.params.index, "Impacto no Lucro Líquido (R$)": mod.params.values}).style.format({"Impacto no Lucro Líquido (R$)": "{:.2f}"}))
+                    st.info(f"💡 **O que isso significa na prática?** O algoritmo calculou que, após pagar fornecedores e impostos, cada **R$ 1,00** investido em anúncios gera **R$ {peso_ads:.2f}** de Lucro Líquido.")
+                    st.dataframe(pd.DataFrame({"Métrica": mod.params.index, "Impacto no Lucro (R$)": mod.params.values}).style.format({"Impacto no Lucro (R$)": "{:.2f}"}))
                 except: pass
 
             with tab2:
                 try:
                     X_clf = df[['investimento_ads', 'leads', 'ticket_medio', 'churn']]
-                    # Classifica com base nos dias que deram lucro acima da média
                     rf = RandomForestClassifier(random_state=42, n_estimators=50).fit(X_clf, (df['lucro_liquido'] > df['lucro_liquido'].median()).astype(int))
                     imps = pd.DataFrame({'Métrica': X_clf.columns, 'Poder de Decisão (%)': rf.feature_importances_ * 100}).sort_values('Poder de Decisão (%)', ascending=False)
                     importancias_lista = imps.to_dict('records')
-                    st.info("💡 **Onde focar sua energia?**\nEste gráfico mostra qual métrica operacional é a mais crítica para empurrar o seu negócio para a lucratividade.")
+                    st.info("💡 **Onde focar sua energia?** Este gráfico mostra qual métrica é a mais crítica para empurrar o seu negócio para a lucratividade.")
                     st.bar_chart(imps.set_index('Métrica'))
                 except: pass
 
             with tab3:
                 try:
-                    df['Cluster'] = KMeans(n_clusters=3, random_state=42).fit_predict(StandardScaler().fit_transform(df[['investimento_ads', 'lucro_liquido']])).astype(str)
-                    st.info("💡 **Mapeamento de Eficiência Financeira:**\n* **Dias no Topo à Direita:** Alta eficiência de anúncios gerando o maior lucro líquido histórico.\n* **Dias na parte de baixo:** Operações deficitárias (onde o gasto de tráfego engoliu a margem).")
-                    st.scatter_chart(df, x='investimento_ads', y='lucro_liquido', color='Cluster')
-                except: pass
+                    # IMPLEMENTAÇÃO DO GAUSSIAN MIXTURE MODEL (GMM)
+                    X_scaled = StandardScaler().fit_transform(df[['investimento_ads', 'lucro_liquido']])
+                    gmm = GaussianMixture(n_components=3, covariance_type='full', random_state=42)
+                    df['Cluster_Num'] = gmm.fit_predict(X_scaled)
+                    
+                    # Identificando a qualidade de cada cluster dinamicamente pela média de lucro
+                    medias = df.groupby('Cluster_Num')['lucro_liquido'].mean().sort_values()
+                    mapa_nomes = {
+                        medias.index[0]: '🔴 Operação em Risco (Abaixo da média)',
+                        medias.index[1]: '🟡 Operação Estável (Sobrevivência)',
+                        medias.index[2]: '🟢 Dias de Ouro (Alta Lucratividade)'
+                    }
+                    df['Perfil de Risco'] = df['Cluster_Num'].map(mapa_nomes)
+                    
+                    st.info("💡 **Mapeamento Probabilístico (GMM):** O modelo identificou as zonas exatas onde o seu investimento em tráfego tem mais probabilidade de gerar lucro líquido vs. prejuízo.")
+                    st.scatter_chart(df, x='investimento_ads', y='lucro_liquido', color='Perfil de Risco')
+                except Exception as e: 
+                    st.error(f"Erro no GMM: {e}")
 
             with tab4:
                 dias_registrados = len(df)
@@ -282,32 +275,41 @@ else:
                         datas_futuras = [df_xgb['data'].max() + pd.Timedelta(days=i) for i in range(1, 8)]
                         previsoes = []
                         lucro_lag = df_xgb['lucro_liquido'].iloc[-1]
+                        media_ads = df_xgb['investimento_ads'].tail(7).mean()
+                        
                         for dt in datas_futuras:
-                            X_futuro = pd.DataFrame({'investimento_ads': [df_xgb['investimento_ads'].tail(7).mean()], 'dia_semana': [dt.dayofweek], 'lucro_ontem': [lucro_lag]})
+                            X_futuro = pd.DataFrame({'investimento_ads': [media_ads], 'dia_semana': [dt.dayofweek], 'lucro_ontem': [lucro_lag]})
                             pred = modelo_xgb.predict(X_futuro)[0]
                             previsoes.append(pred)
                             lucro_lag = pred
 
                         df_futuro = pd.DataFrame({'Data': datas_futuras, 'Lucro Líquido Previsto (R$)': previsoes})
-                        st.info("💡 **Previsão de Fluxo de Caixa Futuro (XGBoost):** Projeção do lucro líquido esperado para a próxima semana.")
+                        # CORREÇÃO DO EIXO X: Forçando formatação em dias
+                        df_futuro['Data'] = df_futuro['Data'].dt.strftime('%Y-%m-%d')
+                        
+                        st.info("💡 **Previsão XGBoost:** O modelo projeta as datas e a estimativa de Lucro Líquido considerando sua sazonalidade semanal.")
                         st.line_chart(df_futuro.set_index('Data'))
-                    except: pass
+                    except Exception as e:
+                        st.error(f"Erro no XGBoost: {e}")
                 else:
-                    st.info(f"⏳ **Aprendizado Preditivo Inteligente ({dias_registrados}/21 dias históricos)**")
+                    st.info(f"⏳ **Aprendizado Preditivo ({dias_registrados}/21 dias históricos)**")
 
             st.divider()
             st.subheader("🤖 Diagnóstico Executivo do CFO Artificial")
             
             if "relatorio_gerado" not in st.session_state:
-                with st.spinner("O CFO está processando as linhas do DRE..."):
-                    prompt_cfo = f"Dados macro da empresa: Faturamento Bruto R${fat_total:.2f}, Lucro Líquido Real R${lucro_total:.2f}, Margem Líquida {margem_liquida:.2f}%, Gasto Tráfego R${inv_total:.2f}. Forneça uma análise corporativa cirúrgica sobre a eficiência de marketing sobre as sobras de caixa."
-                    st.session_state["relatorio_gerado"] = cfo_agent.run(prompt_cfo).content
+                with st.spinner("Conectando ao gateway Portkey..."):
+                    prompt_cfo = f"Dados: Fat Bruto R${fat_total:.2f}, Lucro Líquido R${lucro_total:.2f}, Margem {margem_liquida:.2f}%. Forneça uma análise corporativa cirúrgica em 2 parágrafos."
+                    try:
+                        st.session_state["relatorio_gerado"] = cfo_agent.run(prompt_cfo).content
+                    except Exception as e:
+                        st.session_state["relatorio_gerado"] = f"Falha na IA via Portkey: Verifique se o slug está correto no painel. Erro: {e}"
             
             st.write(st.session_state["relatorio_gerado"])
             
             if st.button("🎯 Transformar Parecer em Plano de Ação", type="primary", use_container_width=True):
-                with st.spinner("Formatando matriz de tarefas táticas..."):
-                    prompt_plano = f"Cenário: Fat Bruto R${fat_total:.2f}, Lucro Líquido R${lucro_total:.2f}, Margem {margem_liquida:.2f}%. O parecer foi: {st.session_state['relatorio_gerado']}. Variáveis RF: {importancias_lista}. Multiplicador de tráfego: {peso_ads:.2f}. Monte um plano de ação ultra agressivo de exatamente 3 passos práticos para cortar desperdício de marketing e expandir o lucro líquido imediatamente."
+                with st.spinner("Formatando tarefas táticas..."):
+                    prompt_plano = f"Cenário: Fat Bruto R${fat_total:.2f}, Lucro R${lucro_total:.2f}, Margem {margem_liquida:.2f}%. Parecer: {st.session_state['relatorio_gerado']}. Monte 3 passos práticos para expandir lucro imediatamente."
                     st.session_state["plano_acao_gerado"] = cfo_agent.run(prompt_plano).content
             
             if "plano_acao_gerado" in st.session_state:
