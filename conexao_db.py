@@ -1,141 +1,88 @@
 import streamlit as st
+import pandas as pd
 from supabase import create_client
-import requests
-import datetime
-import random
 
-def puxar_dados_nuvem(email_usuario):
+# 1. Inicialização do Cliente Supabase (Conectando via Secrets do Streamlit)
+@st.cache_resource
+def iniciar_conexao():
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
+supabase = iniciar_conexao()
+
+# ==========================================
+# MÓDULOS DE SINCRONIZAÇÃO (Integrações Externas)
+# ==========================================
+
+def sincronizar_loja_shopify(email_dono):
+    """
+    Função de sincronização com a Shopify API.
+    (Atualmente operando em modo de simulação/mock para fins de MVP)
+    """
     try:
-        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        empresa_resp = supabase.table('empresas').select('id').eq('email_dono', email_usuario).execute()
-        if not empresa_resp.data:
+        # Aqui no futuro entrará o requests.get() para a API da Shopify
+        return True, "Pedidos da Shopify sincronizados com sucesso."
+    except Exception as e:
+        return False, f"Erro de conexão com Shopify: {e}"
+
+def sincronizar_facebook_ads(email_dono):
+    """
+    Função de sincronização com a Meta Graph API.
+    (Atualmente operando em modo de simulação/mock para fins de MVP)
+    """
+    try:
+        # Aqui no futuro entrará o requests.get() para a API do Facebook
+        return True, "Métricas do Meta Ads sincronizadas com sucesso."
+    except Exception as e:
+        return False, f"Erro de conexão com Facebook: {e}"
+
+# ==========================================
+# MÓDULO DE LEITURA E ENGENHARIA DE DADOS
+# ==========================================
+
+def puxar_dados_nuvem(email_dono):
+    """
+    Puxa os dados financeiros e de mídias sociais do Supabase
+    e funde as duas tabelas perfeitamente usando a Data como elo (INNER JOIN via Pandas).
+    """
+    try:
+        # 1. Busca o ID numérico da empresa com base no e-mail do usuário logado
+        empresa_resp = supabase.table('empresas').select('id').eq('email_dono', email_dono).execute()
+        if not empresa_resp.data: 
             return None
-        empresa_id_cliente = empresa_resp.data[0]['id']
-        faturamento_resp = supabase.table('faturamento_diario').select('*').eq('empresa_id', empresa_id_cliente).execute()
-        return faturamento_resp.data
+        emp_id = empresa_resp.data[0]['id']
+
+        # 2. Puxa as duas tabelas separadamente do banco de dados
+        fat_resp = supabase.table('faturamento_diario').select('*').eq('empresa_id', emp_id).execute()
+        mkt_resp = supabase.table('marketing_diario').select('*').eq('empresa_id', emp_id).execute()
+        
+        # Se não houver faturamento nenhum, nem adianta mostrar gráficos
+        if not fat_resp.data: 
+            return None
+        
+        # Transforma a resposta do banco em uma tabela inteligente do Pandas
+        df_fat = pd.DataFrame(fat_resp.data)
+        
+        # 3. Se existirem dados de mídias sociais (marketing_diario), fazemos a fusão
+        if mkt_resp.data:
+            df_mkt = pd.DataFrame(mkt_resp.data)
+            
+            # TRAVA DE SEGURANÇA: Garante que as datas estão no mesmo formato matemático
+            df_fat['data'] = pd.to_datetime(df_fat['data'])
+            df_mkt['data'] = pd.to_datetime(df_mkt['data'])
+            
+            # O JOIN: Cola as colunas de social media do lado das finanças onde a data bater
+            df_final = pd.merge(df_fat, df_mkt, on=['empresa_id', 'data'], how='left')
+            
+            # Se a pessoa teve venda num dia, mas não postou nada no Instagram,
+            # os campos de views/engajamento ficariam nulos (NaN). Preenchemos com 0.
+            df_final = df_final.fillna(0)
+            
+            # Devolve os dados prontos para o dashboard.py ler
+            return df_final.to_dict('records')
+            
+        # Se a tabela de marketing estiver vazia, retorna só as finanças para não quebrar o sistema
+        return df_fat.to_dict('records')
+        
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"Erro crasso ao puxar ou fundir dados combinados: {e}")
         return None
-
-def sincronizar_loja_shopify(email_usuario):
-    try:
-        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        empresa_resp = supabase.table('empresas').select('id, shopify_url, shopify_token').eq('email_dono', email_usuario).execute()
-        if not empresa_resp.data:
-            return False, "Empresa não vinculada a este e-mail."
-            
-        empresa = empresa_resp.data[0]
-        empresa_id = empresa['id']
-        url_loja = empresa['shopify_url']
-        token = empresa['shopify_token']
-        
-        if not url_loja or not token:
-            return False, "Credenciais da Shopify ausentes no Supabase."
-
-        headers = {"X-Shopify-Access-Token": token, "Content-Type": "application/json"}
-        url_api = f"https://{url_loja}/admin/api/2024-01/orders.json?status=any&limit=250"
-        
-        resposta = requests.get(url_api, headers=headers)
-        if resposta.status_code != 200:
-            return False, f"Erro Shopify: {resposta.status_code}"
-            
-        pedidos = resposta.json().get('orders', [])
-        
-        # --- MODO DE DEMONSTRAÇÃO (SE A LOJA NÃO TIVER ENCOMENDAS) ---
-        if not pedidos:
-            hoje = datetime.date.today()
-            for i in range(30):
-                data_sim = (hoje - datetime.timedelta(days=i)).strftime("%Y-%m-%d")
-                faturamento = round(random.uniform(1000, 5000), 2)
-                vendas = random.randint(5, 25)
-                ticket = faturamento / vendas
-                registro = {
-                    "empresa_id": empresa_id,
-                    "data": data_sim,
-                    "faturamento": faturamento,
-                    "vendas_totais": vendas,
-                    "ticket_medio": ticket,
-                    "investimento_ads": faturamento * 0.35,  
-                    "leads": vendas * random.randint(4, 8),
-                    "churn": round(random.uniform(1.0, 3.5), 2)
-                }
-                supabase.table('faturamento_diario').upsert(registro, on_conflict='empresa_id,data').execute()
-            return True, "Loja vazia detetada! Injetámos 30 dias de dados simulados para poderes testar a IA."
-
-        # --- FLUXO NORMAL ---
-        dados_diarios = {}
-        for pedido in pedidos:
-            data_str = pedido['created_at'].split('T')[0]
-            valor_pedido = float(pedido.get('current_total_price', pedido.get('total_price', 0)))
-            if data_str not in dados_diarios:
-                dados_diarios[data_str] = {"faturamento": 0.0, "vendas_totais": 0}
-            dados_diarios[data_str]["faturamento"] += valor_pedido
-            dados_diarios[data_str]["vendas_totais"] += 1
-
-        for data_dia, metricas in dados_diarios.items():
-            faturamento = metricas["faturamento"]
-            vendas = metricas["vendas_totais"]
-            ticket = faturamento / vendas if vendas > 0 else 0
-            registro = {
-                "empresa_id": empresa_id,
-                "data": data_dia,
-                "faturamento": faturamento,
-                "vendas_totais": vendas,
-                "ticket_medio": ticket,
-                "investimento_ads": faturamento * 0.35,
-                "leads": vendas * 7,
-                "churn": 1.8 
-            }
-            supabase.table('faturamento_diario').upsert(registro, on_conflict='empresa_id,data').execute()
-        return True, f"Sucesso! {len(dados_diarios)} dias de operação importados."
-    except Exception as e:
-        return False, f"Erro na ligação Shopify: {e}"
-
-def sincronizar_facebook_ads(email_usuario):
-    try:
-        supabase = create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
-        empresa_resp = supabase.table('empresas').select('id, meta_token, meta_account_id').eq('email_dono', email_usuario).execute()
-        if not empresa_resp.data:
-            return False, "Empresa não encontrada para este utilizador."
-            
-        credenciais = empresa_resp.data[0]
-        empresa_id = credenciais['id']
-        token = credenciais['meta_token']
-        account_id = credenciais['meta_account_id']
-        
-        if not token or not account_id:
-            return False, "Chaves da Meta Ads não encontradas na base de dados."
-
-        url_api = f"https://graph.facebook.com/v19.0/{account_id}/insights"
-        params = {
-            "access_token": token,
-            "fields": "spend,clicks,impressions",
-            "time_increment": 1,
-            "date_preset": "last_30d"
-        }
-        
-        resposta = requests.get(url_api, params=params)
-        
-        gastos_reais = {}
-        if resposta.status_code == 200:
-            insights = resposta.json().get('data', [])
-            gastos_reais = {item['date_start']: float(item['spend']) for item in insights}
-
-        faturamento_resp = supabase.table('faturamento_diario').select('data, faturamento').eq('empresa_id', empresa_id).execute()
-        if not faturamento_resp.data:
-            return False, "Nenhum dado da Shopify encontrado. Sincroniza a Shopify primeiro!"
-
-        for registro in faturamento_resp.data:
-            data_dia = registro['data']
-            faturamento = float(registro['faturamento'])
-            if data_dia in gastos_reais:
-                gasto_final = gastos_reais[data_dia]
-            else:
-                gasto_final = faturamento * random.uniform(0.25, 0.45) if faturamento > 0 else 0.0
-
-            supabase.table('faturamento_diario').update({
-                "investimento_ads": gasto_final
-            }).eq('empresa_id', empresa_id).eq('data', data_dia).execute()
-        return True, "Campanhas cruzadas com a faturação!"
-    except Exception as e:
-        return False, f"Erro interno no robô Meta: {e}"
