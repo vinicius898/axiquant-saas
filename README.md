@@ -3,11 +3,10 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
 [![Supabase](https://img.shields.io/badge/Database-Supabase%20%2F%20PostgreSQL-3ECF8E.svg)](https://supabase.com/)
-[![Portkey](https://img.shields.io/badge/LLMOps-Portkey%20Gateway-00F5D4.svg)](https://portkey.ai/)
 [![Stripe](https://img.shields.io/badge/Billing-Stripe-635BFF.svg)](https://stripe.com/)
 [![Groq](https://img.shields.io/badge/AI-Llama%203.3%2070B-F5A623.svg)](https://groq.com/)
 
-O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *Multi-tenant* desenvolvida para atuar como um **CFO Quantitativo** e hub de inteligência unificada para negócios. O sistema consolida de forma não-destrutiva métricas de aquisição de tráfego pago via **Meta Graph API** e dados de faturamento, aplicando uma esteira de modelagem macroeconômica baseada em **DRE Dinâmico**. Utilizando algoritmos de *Machine Learning* estatístico e redes agênticas, o sistema mitiga métricas de vaidade, isolando a lucratividade líquida real e projetando o fluxo de caixa para guiar tomadas de decisão táticas de alta gerência.
+O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *Multi-tenant* desenvolvida para atuar como um **CFO Quantitativo** e hub de inteligência unificada para negócios. O sistema consolida de forma não-destrutiva métricas de aquisição de tráfego pago via **Meta Graph API** e dados de mídias sociais orgânicas, aplicando uma esteira de modelagem macroeconômica baseada em **DRE Dinâmico**. Utilizando algoritmos de *Machine Learning* estatístico e redes agênticas, o sistema mitiga métricas de vaidade, isolando a lucratividade líquida real e projetando o fluxo de caixa para guiar tomadas de decisão táticas de alta gerência.
 
 ---
 
@@ -15,33 +14,32 @@ O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *
 
 * **Arquitetura Multi-tenant Segura:** Isolamento estrito de dados por cliente através de cofre relacional no PostgreSQL, garantindo privacidade e conformidade técnica.
 * **Motor de DRE Dinâmico Customizável:** Interface analítica para inserção de parâmetros de custos invisíveis estruturais (CPV %, taxas de gateway de pagamento, impostos médios e custos fixos rateados) com cálculo em tempo real de Lucro Líquido.
-* **Infraestrutura LLMOps Imortal (Portkey Gateway):** Roteamento agêntico blindado contra *Rate Limits* (Erro 429) utilizando estratégias avançadas de **Fallback assíncrono**. Se o cluster principal do Groq falhar ou atingir o teto de requisições, o tráfego é desviado de forma transparente para contingências (OpenAI/GPT-4o-mini).
 * **Paywall Integrada & Mecanismo de Trial:** Sistema de *Product-Led Growth (PLG)* com **7 dias de teste gratuito automatizado** controlado via banco de dados (`data_expiracao_trial`) e transição imediata para barreira de checkout hospedada via **Stripe Payment Links**.
 * **Motores Analíticos e Estatísticos de Margem Real:**
-  * *Causas (Regressão Linear OLS):* Identificação do impacto financeiro direto de variáveis operacionais (Leads, Tráfego Pago, Ticket Médio) focado exclusivamente na variação do **Lucro Líquido**.
-  * *Importância (Random Forest Classifier):* Árvore de decisão estruturada para mapear qual métrica isolada possui o maior poder estatístico de empurrar a empresa para a lucratividade acima da média.
-  * *Padrões Avançados (Gaussian Mixture Models - GMM):* Clusterização probabilística baseada em curvas normais (Gaussianas), substituindo agrupamentos rígidos por perfis reais de comportamento financeiro (*Dias de Risco*, *Estabilidade* e *Dias de Ouro*).
-* **Previsão de Fluxo de Caixa (XGBoost Regressor):** Algoritmo de inteligência preditiva estruturado com *Time Series Forecasting* para projetar o lucro líquido cumulativo dos próximos 7 dias com base em sazonalidades semanais e dados passados (`lag features`).
-* **CFO Artificial Agêntica:** Agente autônomo baseado no framework **Agno** alimentado pelo modelo de última geração **Llama 3.3 70B**. O agente possui o botão dinâmico **"🎯 Transformar Parecer em Plano de Ação"**, que converte diagnósticos numéricos em 3 tarefas táticas imediatas sem quebrar o estado de renderização da página.
+  * *Causas & Prova de ROI Social Media (Regressão Linear OLS):* Identificação do impacto financeiro direto de variáveis de tráfego pago e alcance orgânico (Reels, TikTok, Posts) focado exclusivamente na variação real do **Lucro Líquido**.
+  * *Pesos Operacionais (Random Forest Classifier):* Árvore de decisão estruturada para mapear qual métrica isolada (Frequência de Posts, Engajamento ou Investimento em Ads) possui o maior poder estatístico de empurrar a empresa para a lucratividade.
+  * *Perfis de Risco Avançados (Gaussian Mixture Models - GMM):* Clusterização probabilística baseada em curvas normais (Gaussianas), mapeando com precisão zonas elípticas de dispersão financeira (*🔴 Operação em Risco*, *Consolidação/Estabilidade* e *🟢 Dias de Ouro*).
+* **Previsão de Fluxo de Caixa Híbrido (XGBoost Regressor):** Algoritmo de inteligência preditiva estruturado com *Time Series Forecasting* para projetar o lucro líquido cumulativo dos próximos 7 dias avaliando o comportamento conjunto de anúncios pagos e tração orgânica.
+* **CFO & Diretor de Conteúdo Artificial:** Agente autônomo baseado no framework **Agno** alimentado pelo modelo de última geração **Llama 3.3 70B (via Groq API)**. O agente emite pareceres econômico-editoriais complexos e possui o botão dinâmico **"🎯 Transformar Parecer em Plano de Ação"**, que converte diagnósticos numéricos em tarefas táticas imediatas sem quebrar o estado de renderização da página (`Session State`).
 
 ---
 
 ## 🛠️ Stack Tecnológica & Infraestrutura
 
 * **Linguagem Principal:** Python 3.10+
-* **Interface do Usuário (Frontend):** Streamlit com injeção de CSS Customizado para Dark Mode de padrão empresarial.
+* **Interface do Usuário (Frontend):** Streamlit Cloud com injeção de CSS Customizado para Dark Mode empresarial.
 * **Banco de Dados Relacional:** Supabase (PostgreSQL Cloud) rodando triggers de identidade, restrições exclusivas de chaves primárias e políticas complexas de segurança de dados.
-* **Processamento de Dados & IA:** Pandas, NumPy, Statsmodels, Scikit-learn (RandomForest, GMM), XGBoost, Agno (AI Framework), Portkey SDK, OpenAI.
+* **Processamento de Dados & IA:** Pandas, NumPy, Statsmodels, Scikit-learn (RandomForest, GMM), XGBoost, Agno (AI Framework), OpenAI SDK, Groq API.
 * **Gateway de Cobrança:** Stripe API Client + Stripe Checkout Engines.
 
 ---
 
 ## 📐 Engenharia de Banco de Dados (Schema Supabase)
 
-O ecossistema utiliza tabelas relacionais altamente otimizadas e prontas para a expansão de múltiplos canais de aquisição e marketing:
+O ecossistema utiliza tabelas relacionais altamente otimizadas, indexadas e protegidas contra duplicidade de dados através de chaves compostas exclusivas (`constraints`):
 
 ### Tabela: `empresas`
-Responsável por gerenciar os tenants corporativos, credenciais de APIs criptografadas e estado financeiro de acesso ao SaaS.
+Responsável por gerenciar os tenants corporativos, credenciais de APIs e estado financeiro de acesso ao SaaS.
 ```sql
 CREATE TABLE empresas (
     id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
