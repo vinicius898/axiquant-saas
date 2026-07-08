@@ -134,11 +134,21 @@ else:
         st.title("📊 Painel Executivo: Finanças & Mídias Sociais")
         
         st.sidebar.header("⚙️ Parâmetros Financeiros (DRE)")
-        pct_cpv = st.sidebar.slider("Custo de Produto/Serviço (CPV %)", 0, 100, 30) / 100
-        pct_gateway = st.sidebar.slider("Taxa de Cartão/Gateway (%)", 0.0, 15.0, 5.0) / 100
-        pct_imposto = st.sidebar.slider("Impostos Médios (%)", 0.0, 30.0, 6.0) / 100
-        custo_fixo_mensal = st.sidebar.number_input("Custo Fixo Mensal (R$)", min_value=0, value=3000)
-        custo_fixo_diario = custo_fixo_mensal / 30
+        
+        # Botão Liga/Desliga para o DRE
+        usar_dre = st.sidebar.toggle("📊 Ativar Descontos do DRE", value=False, help="Desligue para a IA avaliar puramente a Margem de Contribuição do Marketing.")
+        
+        if usar_dre:
+            pct_cpv = st.sidebar.slider("Custo de Produto/Serviço (CPV %)", 0, 100, 30) / 100
+            pct_gateway = st.sidebar.slider("Taxa de Cartão/Gateway (%)", 0.0, 15.0, 5.0) / 100
+            pct_imposto = st.sidebar.slider("Impostos Médios (%)", 0.0, 30.0, 6.0) / 100
+            custo_fixo_mensal = st.sidebar.number_input("Custo Fixo Mensal (R$)", min_value=0, value=3000)
+            custo_fixo_diario = custo_fixo_mensal / 30
+        else:
+            pct_cpv = 0.0
+            pct_gateway = 0.0
+            pct_imposto = 0.0
+            custo_fixo_diario = 0.0
         
         st.sidebar.divider()
         
@@ -205,7 +215,7 @@ else:
             st.markdown("### 🏢 Saúde Corporativa (Global)")
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             kpi1.metric("Faturamento Bruto", f"R$ {fat_total:,.2f}")
-            kpi2.metric("Lucro Líquido Real", f"R$ {lucro_total:,.2f}", delta=f"{margem_liquida:.1f}% Margem")
+            kpi2.metric("Lucro", f"R$ {lucro_total:,.2f}", delta=f"{margem_liquida:.1f}% Margem")
             kpi3.metric("Alcance Orgânico (Views)", f"{int(alcance_total):,}".replace(",", "."))
             kpi4.metric("Interações (Engajamento)", f"{int(engajamento_total):,}".replace(",", "."))
             st.divider()
@@ -224,7 +234,7 @@ else:
                     peso_organico = mod.params.get('alcance_organico', 0)
                     peso_ads = mod.params.get('investimento_ads', 0)
                     
-                    st.info(f"💡 **Prova de ROI do Social Media:** O modelo matemático calculou que cada **1 visualização orgânica** (Reels/TikTok) adicionou **R$ {peso_organico:.4f}** de Lucro Líquido ao seu bolso, enquanto o Tráfego Pago gerou **R$ {peso_ads:.2f}** por real investido.")
+                    st.info(f"💡 **Prova de ROI do Social Media:** O modelo matemático calculou que cada **1 visualização orgânica** adicionou **R$ {peso_organico:.4f}** de Lucro ao seu bolso, enquanto o Tráfego Pago gerou **R$ {peso_ads:.2f}** por real investido.")
                     st.dataframe(pd.DataFrame({"Métrica Operacional": mod.params.index, "Impacto no Lucro (R$)": mod.params.values}).style.format({"Impacto no Lucro (R$)": "{:.4f}"}))
                 except Exception as e: 
                     st.warning("Dados orgânicos insuficientes para regressão linear.")
@@ -259,7 +269,7 @@ else:
 
             with tab4:
                 dias_registrados = len(df)
-                if dias_registrados >= 14: # Reduzido para 14 para funcionar com os mock datas
+                if dias_registrados >= 14: 
                     try:
                         df_xgb = df.copy()
                         df_xgb['dia_semana'] = df_xgb['data'].dt.dayofweek
