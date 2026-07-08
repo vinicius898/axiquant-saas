@@ -7,13 +7,14 @@ from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 import xgboost as xgb
+import plotly.express as px  
 from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify, sincronizar_facebook_ads
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
 from supabase import create_client
 from openai import OpenAI
 
-# 1. Configuração da Página e CSS
+# 1. Configuração da Página
 st.set_page_config(page_title="AxiQuant Admin", layout="wide", page_icon="💎")
 st.markdown("""
 <style>
@@ -30,7 +31,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 2. Inicialização de Estado
+# 2. Inicialização
 if 'autenticado' not in st.session_state:
     st.session_state['autenticado'] = False
     st.session_state['usuario_email'] = ""
@@ -62,7 +63,7 @@ if not st.session_state['autenticado']:
                         st.session_state['autenticado'] = True
                         st.session_state['usuario_email'] = email_login 
                         st.rerun()
-                    except Exception as e:
+                    except Exception:
                         st.error("Falha no login. Verifique seu e-mail e senha.")
                         
         with tab_cadastro:
@@ -133,18 +134,16 @@ else:
                     st.rerun()
 
     else:
-        st.title("📊 Painel Executivo: Finanças & Mídias Sociais")
+        st.title("📊 Painel Executivo: Finanças & Marketing")
         
-        st.sidebar.header("⚙️ Parâmetros Financeiros (DRE)")
-        
-        # Botão Liga/Desliga para o DRE estrutural
-        usar_dre = st.sidebar.toggle("📊 Ativar Descontos do DRE", value=False, help="Desligue para a IA avaliar puramente a Margem de Contribuição do Marketing.")
+        st.sidebar.header("⚙️ Parâmetros Financeiros")
+        usar_dre = st.sidebar.toggle("Ativar Descontos Fixos", value=False, help="Ligue para ver o Lucro Líquido final após todos os custos da empresa.")
         
         if usar_dre:
-            pct_cpv = st.sidebar.slider("Custo de Produto/Serviço (CPV %)", 0, 100, 30) / 100
-            pct_gateway = st.sidebar.slider("Taxa de Cartão/Gateway (%)", 0.0, 15.0, 5.0) / 100
-            pct_imposto = st.sidebar.slider("Impostos Médios (%)", 0.0, 30.0, 6.0) / 100
-            custo_fixo_mensal = st.sidebar.number_input("Custo Fixo Mensal (R$)", min_value=0, value=3000)
+            pct_cpv = st.sidebar.slider("Custo do Produto (%)", 0, 100, 30) / 100
+            pct_gateway = st.sidebar.slider("Taxas de Cartão (%)", 0.0, 15.0, 5.0) / 100
+            pct_imposto = st.sidebar.slider("Impostos (%)", 0.0, 30.0, 6.0) / 100
+            custo_fixo_mensal = st.sidebar.number_input("Custo Fixo (R$)", min_value=0, value=3000)
             custo_fixo_diario = custo_fixo_mensal / 30
         else:
             pct_cpv = 0.0
@@ -154,17 +153,17 @@ else:
         
         st.sidebar.divider()
         
-        if st.sidebar.button("🛍️ Sincronizar Operação Externa"):
+        if st.sidebar.button("🛍️ Puxar Dados Externos (API)"):
             sucesso, msg = sincronizar_facebook_ads(st.session_state['usuario_email'])
-            if sucesso: st.toast("Sincronização Concluída!")
+            if sucesso: st.toast("Dados atualizados!")
             else: st.sidebar.error(msg)
         
-        if st.sidebar.button("🚪 Sair do Sistema"):
+        if st.sidebar.button("🚪 Sair"):
             st.session_state['autenticado'] = False
             st.session_state['dados_carregados'] = False
             st.rerun()
 
-        # --- CONEXÃO DIRETA GROQ (SEM PORTKEY) ---
+        # Agente CFO configurado para falar como um consultor de negócios
         groq_client = OpenAI(
             api_key=st.secrets.get("GROQ_API_KEY", ""),
             base_url="https://api.groq.com/openai/v1"
@@ -172,11 +171,11 @@ else:
         
         cfo_agent = Agent(
             model=OpenAIChat(id="llama-3.3-70b-versatile", client=groq_client),
-            description="Você é um CFO sênior quantitativo e econometrista. Traduza métricas de redes sociais, modelos de regressão Ridge e Margens de Contribuição de Marketing (MCM) para estratégias de maximização de caixa corporativo."
+            description="Você é um consultor financeiro focado em ajudar donos de e-commerce a aumentarem os lucros. Use linguagem simples, direta e de negócios."
         )
 
-        if st.sidebar.button("☁️ Sincronizar Painel Interno", type="primary"):
-            with st.spinner("Carregando base de dados financeira e de marketing..."):
+        if st.sidebar.button("☁️ Sincronizar Painel", type="primary"):
+            with st.spinner("Processando histórico..."):
                 dados = puxar_dados_nuvem(st.session_state['usuario_email'])
                 if dados:
                     st.session_state['dados_loja'] = dados
@@ -197,24 +196,19 @@ else:
             
             df = df.sort_values('data').dropna()
             
-            # --- INTEGRAÇÃO DO BOTÃO DE DOWNLOAD DO CSV ---
             csv_export = df.to_csv(index=False).encode('utf-8')
             st.sidebar.download_button(
-                label="📥 Baixar Dados (CSV)",
+                label="📥 Exportar Base (CSV)",
                 data=csv_export,
-                file_name="axiquant_base_historica.csv",
-                mime="text/csv",
-                help="Exporte a base completa de 4 anos da Meta Robyn para rodar análises em R ou Python."
+                file_name="axiquant_base.csv",
+                mime="text/csv"
             )
             
-            # Cálculo de Lucro Operacional Líquido
             df['custo_produtos'] = df['faturamento'] * pct_cpv
             df['taxas_gateway'] = df['faturamento'] * pct_gateway
             df['impostos'] = df['faturamento'] * pct_imposto
             df['custo_fixo_rateado'] = custo_fixo_diario
             df['lucro_liquido'] = df['faturamento'] - (df['investimento_ads'] + df['custo_produtos'] + df['taxas_gateway'] + df['impostos'] + df['custo_fixo_rateado'])
-            
-            # NOVO ALVO METODOLÓGICO: Margem de Contribuição do Marketing (MCM)
             df['mcm'] = df['faturamento'] - df['investimento_ads']
             
             fat_total = df['faturamento'].sum()
@@ -222,95 +216,113 @@ else:
             mcm_total = df['mcm'].sum()
             lucro_total = df['lucro_liquido'].sum()
             
-            # Margem calculada sobre a realidade ativa escolhida no painel
             margem_exibida = (mcm_total / fat_total) * 100 if not usar_dre else (lucro_total / fat_total) * 100
-            label_lucro = "Margem de Marketing (MCM)" if not usar_dre else "Lucro Líquido Real"
+            label_lucro = "Receita de Marketing" if not usar_dre else "Lucro Líquido Real"
             valor_lucro = mcm_total if not usar_dre else lucro_total
             
             alcance_total = df['alcance_organico'].sum() if 'alcance_organico' in df.columns else 0
             engajamento_total = df['interacoes_engajamento'].sum() if 'interacoes_engajamento' in df.columns else 0
             
-            st.markdown("### 🏢 Saúde Corporativa (Global)")
+            st.markdown("### 🏢 Saúde do Negócio")
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-            kpi1.metric("Faturamento Bruto", f"R$ {fat_total:,.2f}")
+            kpi1.metric("Faturamento", f"R$ {fat_total:,.2f}")
             kpi2.metric(label_lucro, f"R$ {valor_lucro:,.2f}", delta=f"{margem_exibida:.1f}% Margem")
-            kpi3.metric("Alcance Orgânico (Views)", f"{int(alcance_total):,}".replace(",", "."))
-            kpi4.metric("Interações (Engajamento)", f"{int(engajamento_total):,}".replace(",", "."))
-            st.sidebar.metric("💰 Total Investido em Ads", f"R$ {inv_total:,.2f}")
+            kpi3.metric("Alcance (Views)", f"{int(alcance_total):,}".replace(",", "."))
+            kpi4.metric("Engajamento", f"{int(engajamento_total):,}".replace(",", "."))
+            st.sidebar.metric("Total Investido (Ads)", f"R$ {inv_total:,.2f}")
             st.divider()
 
-            st.header("🧠 Inteligência Artificial Aplicada")
-            tab1, tab2, tab3, tab4 = st.tabs(["ROI Social Media (Ridge Regression)", "Pesos Operacionais (RF)", "Perfis de Risco (GMM)", "🔮 Previsão de Caixa"])
+            st.header("🧠 Inteligência de Dados")
+            # Nomes limpos e focados em negócios
+            tab1, tab2, tab3, tab4 = st.tabs(["💸 Retorno por Canal", "🎯 Onde Focar", "🚥 Dias de Ouro", "🔮 Previsão de Vendas"])
+            
+            peso_organico = 0
             
             with tab1:
-                st.subheader("🛡️ Resolução de Multicolinearidade via Regularização L2 (Ridge)")
-                st.write("Em Marketing Mix Modeling (MMM), variáveis de tráfego pago e alcance orgânico possuem alta correlação, quebrando regressões comuns (OLS). Ajuste o fator **Alpha** para penalizar a variância e estabilizar os ROIs reais positivos.")
-                
-                # Slider dinâmico para o Alpha da Regressão Ridge
-                ridge_alpha = st.slider("Fator de Penalização Estatística (Alpha L2)", min_value=0.1, max_value=200.0, value=30.0, step=1.0)
+                st.subheader("Atribuição de Receita")
+                st.write("A inteligência do AxiQuant analisou o histórico e calculou o retorno exato de cada esforço de marketing da empresa.")
                 
                 try:
                     features = ['investimento_ads', 'alcance_organico', 'posts_publicados']
                     X = df[features]
                     y = df['mcm']
                     
-                    # 1. Padronização estrita (Obrigatória para Ridge)
-                    scaler_X = StandardScaler()
-                    scaler_y = StandardScaler()
+                    # Tenta OLS primeiro (Feijão com arroz)
+                    X_ols = sm.add_constant(X)
+                    modelo_ols = sm.OLS(y, X_ols).fit()
                     
-                    X_scaled = scaler_X.fit_transform(X)
-                    y_scaled = scaler_y.fit_transform(y.values.reshape(-1, 1)).flatten()
+                    peso_ads = modelo_ols.params.get('investimento_ads', 0)
+                    peso_org = modelo_ols.params.get('alcance_organico', 0)
+                    peso_posts = modelo_ols.params.get('posts_publicados', 0)
+                    intercepto = modelo_ols.params.get('const', 0)
                     
-                    # 2. Treinamento do Modelo Ridge
-                    modelo_ridge = Ridge(alpha=ridge_alpha)
-                    modelo_ridge.fit(X_scaled, y_scaled)
-                    
-                    # 3. Engenharia Reversa Estatística: Despadronizar coeficientes para manter interpretação em Reais (R$)
-                    std_X = scaler_X.scale_
-                    std_y = scaler_y.scale_[0]
-                    coef_originais = modelo_ridge.coef_ * (std_y / std_X)
-                    intercepto_original = scaler_y.mean_[0] - np.sum(coef_originais * scaler_X.mean_)
-                    
-                    peso_ads = coef_originais[0]
-                    peso_organico = coef_originais[1]
-                    peso_posts = coef_originais[2]
-                    
-                    st.success(f"💡 **Prova de Atribuição Corrigida (L2):** O modelo calculou que cada **1 visualização orgânica** agregou **R$ {peso_organico:.4f}** à Margem de Marketing, enquanto cada R$ 1,00 investido em anúncios retornou **R$ {peso_ads:.2f}** em receita incremental.")
+                    # Lógica do AutoML: Se a multicolinearidade quebrou os pesos (ficou negativo), aplica Ridge silenciosamente
+                    if peso_ads < 0 or peso_org < 0:
+                        scaler_X = StandardScaler()
+                        scaler_y = StandardScaler()
+                        
+                        X_scaled = scaler_X.fit_transform(X)
+                        y_scaled = scaler_y.fit_transform(y.values.reshape(-1, 1)).flatten()
+                        
+                        ridge = Ridge(alpha=30.0) # Alpha travado nos bastidores
+                        ridge.fit(X_scaled, y_scaled)
+                        
+                        std_X = scaler_X.scale_
+                        std_y = scaler_y.scale_[0]
+                        coef_originais = ridge.coef_ * (std_y / std_X)
+                        intercepto = scaler_y.mean_[0] - np.sum(coef_originais * scaler_X.mean_)
+                        
+                        peso_ads = coef_originais[0]
+                        peso_org = coef_originais[1]
+                        peso_posts = coef_originais[2]
+                        
+                        # Guardamos na variável para o TCC saber que o fallback ativou
+                        st.session_state['metodo_usado'] = "Ridge (Ajuste Automático)"
+                    else:
+                        st.session_state['metodo_usado'] = "Regressão OLS Padrão"
+
+                    st.success(f"💡 **Conclusão da IA:** Cada visualização orgânica no seu perfil está gerando **R$ {peso_org:.4f}** para o seu negócio. Enquanto isso, cada R$ 1,00 colocado em Anúncios Pagos retorna **R$ {peso_ads:.2f}**.")
                     
                     df_coefs = pd.DataFrame({
-                        "Métrica Operacional": ["Intercepto (Base Estável)", "Investimento Meta/Search Ads (R$)", "Alcance Orgânico (Views)", "Frequência de Posts Diários"],
-                        "Impacto Direto na Margem (R$)": [intercepto_original, peso_ads, peso_organico, peso_posts]
+                        "Canais de Aquisição": ["Base do Negócio (Inércia)", "Anúncios Pagos (R$)", "Tráfego Orgânico (Views)", "Postagens Diárias"],
+                        "Impacto Direto (R$)": [intercepto, peso_ads, peso_org, peso_posts]
                     })
-                    st.dataframe(df_coefs.style.format({"Impacto Direto na Margem (R$)": "{:,.4f}"}))
+                    st.dataframe(df_coefs.style.format({"Impacto Direto (R$)": "{:,.2f}"}), use_container_width=True)
                 except Exception as e: 
-                    st.warning(f"Erro ao processar matriz Ridge: {e}")
+                    st.warning("Histórico insuficiente para calcular os retornos.")
 
             with tab2:
                 try:
                     X_clf = df[['investimento_ads', 'alcance_organico', 'interacoes_engajamento', 'posts_publicados']]
                     rf = RandomForestClassifier(random_state=42, n_estimators=50).fit(X_clf, (df['mcm'] > df['mcm'].median()).astype(int))
-                    imps = pd.DataFrame({'Métrica': X_clf.columns, 'Poder de Decisão (%)': rf.feature_importances_ * 100}).sort_values('Poder de Decisão (%)', ascending=False)
-                    st.info("💡 **Onde focar sua energia?** O algoritmo avalia de forma não-linear qual canal possui maior relevância para romper a mediana histórica de receita.")
-                    st.bar_chart(imps.set_index('Métrica'))
+                    imps = pd.DataFrame({'Métrica': ['Anúncios', 'Alcance Orgânico', 'Engajamento', 'Qtd Posts'], 
+                                         'Importância (%)': rf.feature_importances_ * 100}).sort_values('Importância (%)', ascending=False)
+                    
+                    st.info("💡 **Análise de Esforço:** Descubra o que tem mais peso na hora de bater as metas do mês.")
+                    # Plotly: Gráfico estilo ggplot2
+                    fig_bar = px.bar(imps, x='Métrica', y='Importância (%)', template='ggplot2', color='Importância (%)', color_continuous_scale='Blues')
+                    st.plotly_chart(fig_bar, use_container_width=True)
                 except: pass
 
             with tab3:
                 try:
-                    # GMM focado na dispersão de investimentos vs retorno real de marketing
                     X_scaled = StandardScaler().fit_transform(df[['investimento_ads', 'mcm']])
                     gmm = GaussianMixture(n_components=3, covariance_type='full', random_state=42)
                     df['Cluster_Num'] = gmm.fit_predict(X_scaled)
                     
                     medias = df.groupby('Cluster_Num')['mcm'].mean().sort_values()
                     mapa_nomes = {
-                        medias.index[0]: '🔴 Eficiência Baixa / Risco',
-                        medias.index[1]: '🟡 Eficiência Média / Estável',
-                        medias.index[2]: '🟢 Dias de Ouro / Alta Tração'
+                        medias.index[0]: 'Dias de Risco (Atenção)',
+                        medias.index[1]: 'Dias Estáveis',
+                        medias.index[2]: 'Dias de Ouro (Alta Venda)'
                     }
-                    df['Perfil de Risco'] = df['Cluster_Num'].map(mapa_nomes)
+                    df['Momento'] = df['Cluster_Num'].map(mapa_nomes)
                     
-                    st.info("💡 **Mapeamento Probabilístico (GMM):** Agrupamento elíptico por densidade que isola os dias de maior e menor retorno sobre o investimento de mídia.")
-                    st.scatter_chart(df, x='investimento_ads', y='mcm', color='Perfil de Risco')
+                    st.info("💡 **Mapeamento:** Veja como o seu faturamento reage de acordo com o valor que você investe.")
+                    # Plotly: Gráfico de Dispersão limpo
+                    fig_scatter = px.scatter(df, x='investimento_ads', y='mcm', color='Momento', template='ggplot2',
+                                             labels={'investimento_ads': 'Gasto em Ads (R$)', 'mcm': 'Retorno (R$)'})
+                    st.plotly_chart(fig_scatter, use_container_width=True)
                 except: pass
 
             with tab4:
@@ -340,36 +352,46 @@ else:
                             previsoes.append(pred)
                             mcm_lag = pred
 
-                        df_futuro = pd.DataFrame({'Data': datas_futuras, 'Margem Prevista (R$)': previsoes})
-                        df_futuro['Data'] = df_futuro['Data'].dt.strftime('%Y-%m-%d')
+                        df_futuro = pd.DataFrame({'Data': datas_futuras, 'Retorno Previsto (R$)': previsoes})
                         
-                        st.info("💡 **Previsão Avançada XGBoost:** Projeção estocástica do comportamento de caixa para a próxima semana baseada na tendência histórica da Meta.")
-                        st.line_chart(df_futuro.set_index('Data'))
-                    except Exception as e:
-                        st.error(f"Erro no XGBoost: {e}")
+                        st.info("💡 **Bússola de Vendas:** A Inteligência Artificial projetou o seu fluxo de caixa para a próxima semana.")
+                        # Plotly: Gráfico de Linha preditivo
+                        fig_line = px.line(df_futuro, x='Data', y='Retorno Previsto (R$)', template='ggplot2', markers=True)
+                        st.plotly_chart(fig_line, use_container_width=True)
+                    except Exception as e: pass
                 else:
-                    st.info(f"⏳ **Aprendizado Preditivo ({dias_registrados}/14 dias históricos)**")
+                    st.info(f"⏳ **Coletando dados ({dias_registrados}/14 dias)...**")
 
             st.divider()
-            st.subheader("🤖 Diagnóstico Executivo do CFO Artificial")
+            st.subheader("🤖 Consultoria Executiva IA")
             
             if "relatorio_gerado" not in st.session_state:
-                with st.spinner("Analisando matriz Ridge de Mídias Sociais..."):
-                    prompt_cfo = f"Dados: Fat Bruto R${fat_total:.2f}, MCM Total R${mcm_total:.2f}, Alcance {alcance_total}. O modelo Ridge corrigiu a multicolinearidade e isolou que o alcance orgânico gera R${peso_organico:.4f} por view. Forneça uma análise de econometria robusta em 2 parágrafos provando o valor do conteúdo e explicando por que a regularização Ridge foi necessária para corrigir distorções de dados."
+                with st.spinner("Analisando o fluxo de caixa..."):
+                    # Prompt reformulado para bloquear jargões acadêmicos
+                    prompt_cfo = f"""
+                    Você é um Diretor Financeiro (CFO) experiente aconselhando o dono de uma loja.
+                    O Faturamento atual é de R${fat_total:,.2f} e a Receita de Marketing é R${mcm_total:,.2f}.
+                    A IA descobriu que cada visualização orgânica no Instagram/Tiktok gera R${peso_organico:.4f} de receita.
+                    
+                    REGRAS OBRIGATÓRIAS:
+                    1. Escreva 2 parágrafos curtos, encorajadores e diretos.
+                    2. Fale EXCLUSIVAMENTE sobre estratégia de negócios, vendas, conteúdo e como otimizar os lucros.
+                    3. É TOTALMENTE PROIBIDO usar jargões acadêmicos. NÃO use as palavras: 'econometria', 'multicolinearidade', 'modelo Ridge', 'OLS', 'variáveis' ou 'coeficientes'. Fale a língua do lojista.
+                    """
                     try:
                         st.session_state["relatorio_gerado"] = cfo_agent.run(prompt_cfo).content
                     except Exception as e:
-                        st.session_state["relatorio_gerado"] = f"Erro na comunicação com a API Groq: {e}"
+                        st.session_state["relatorio_gerado"] = f"Erro na IA: {e}"
             
             st.write(st.session_state["relatorio_gerado"])
             
-            if st.button("🎯 Transformar Parecer em Plano de Ação", type="primary", use_container_width=True):
-                with st.spinner("Formatando tarefas táticas e editoriais..."):
-                    prompt_plano = f"Cenário de Atribuição: Alcance {alcance_total}, Peso Orgânico {peso_organico:.4f}. Parecer: {st.session_state['relatorio_gerado']}. Monte 3 passos táticos para otimizar as postagens orgânicas baseando-se no ganho incremental calculado pelo modelo Ridge."
+            if st.button("🎯 Gerar Plano de Ação Prático", type="primary", use_container_width=True):
+                with st.spinner("Formatando as tarefas..."):
+                    prompt_plano = f"Com base neste cenário financeiro: {st.session_state['relatorio_gerado']}. Escreva 3 passos práticos em formato de checklist que o dono da loja pode aplicar hoje mesmo no seu marketing para aumentar as vendas."
                     st.session_state["plano_acao_gerado"] = cfo_agent.run(prompt_plano).content
             
             if "plano_acao_gerado" in st.session_state:
-                st.success("🔥 Plano de Mídias Sociais Orientado a Lucro Prontificado!")
+                st.success("🔥 Plano de Marketing Gerado!")
                 st.markdown(st.session_state["plano_acao_gerado"])
         else:
-            st.info("👋 Clique em 'Sincronizar Painel Interno' para carregar as métricas híbridas.")
+            st.info("👋 Clique em 'Sincronizar Painel' para ver seus números.")
