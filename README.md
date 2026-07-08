@@ -1,53 +1,52 @@
-# 💎 AxiQuant SaaS — Inteligência Financeira e CFO Artificial Preditivo
+# 💎 AxiQuant SaaS: O CFO Artificial Quantitativo
 
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
-[![Supabase](https://img.shields.io/badge/Database-Supabase%20%2F%20PostgreSQL-3ECF8E.svg)](https://supabase.com/)
-[![Stripe](https://img.shields.io/badge/Billing-Stripe-635BFF.svg)](https://stripe.com/)
-[![Groq](https://img.shields.io/badge/AI-Llama%203.3%2070B-F5A623.svg)](https://groq.com/)
+O **AxiQuant** é um software (SaaS) focado em **Marketing Mix Modeling (MMM)** e análise de dados financeiros para e-commerces e negócios digitais. Utilizando algoritmos de Machine Learning e Inteligência Artificial Generativa, o sistema audita o histórico de tráfego pago e orgânico, isola o retorno real (ROI) de cada canal e projeta o fluxo de caixa futuro.
 
-O **AxiQuant** é uma plataforma SaaS (*Software as a Service*) de arquitetura *Multi-tenant* desenvolvida para atuar como um **CFO Quantitativo** e hub de inteligência unificada para negócios. O sistema consolida de forma não-destrutiva métricas de aquisição de tráfego pago via **Meta Graph API** e dados de mídias sociais orgânicas, aplicando uma esteira de modelagem macroeconômica baseada em **DRE Dinâmico**. Utilizando algoritmos de *Machine Learning* estatístico e redes agênticas, o sistema mitiga métricas de vaidade, isolando a lucratividade líquida real e projetando o fluxo de caixa para guiar tomadas de decisão táticas de alta gerência.
+Este projeto também atua como base empírica para um **Trabalho de Conclusão de Curso (TCC) em Bacharelado em Estatística**, focado na resolução de multicolinearidade em dados de marketing através de Regressão Penalizada (Ridge) e Modelagem Preditiva.
 
 ---
 
-## 🚀 Funcionalidades Principais
+## 🚀 Arquitetura e Tecnologias (Tech Stack)
 
-* **Arquitetura Multi-tenant Segura:** Isolamento estrito de dados por cliente através de cofre relacional no PostgreSQL, garantindo privacidade e conformidade técnica.
-* **Motor de DRE Dinâmico Customizável:** Interface analítica para inserção de parâmetros de custos invisíveis estruturais (CPV %, taxas de gateway de pagamento, impostos médios e custos fixos rateados) com cálculo em tempo real de Lucro Líquido.
-* **Paywall Integrada & Mecanismo de Trial:** Sistema de *Product-Led Growth (PLG)* com **7 dias de teste gratuito automatizado** controlado via banco de dados (`data_expiracao_trial`) e transição imediata para barreira de checkout hospedada via **Stripe Payment Links**.
-* **Motores Analíticos e Estatísticos de Margem Real:**
-  * *Causas & Prova de ROI Social Media (Regressão Linear OLS):* Identificação do impacto financeiro direto de variáveis de tráfego pago e alcance orgânico (Reels, TikTok, Posts) focado exclusivamente na variação real do **Lucro Líquido**.
-  * *Pesos Operacionais (Random Forest Classifier):* Árvore de decisão estruturada para mapear qual métrica isolada (Frequência de Posts, Engajamento ou Investimento em Ads) possui o maior poder estatístico de empurrar a empresa para a lucratividade.
-  * *Perfis de Risco Avançados (Gaussian Mixture Models - GMM):* Clusterização probabilística baseada em curvas normais (Gaussianas), mapeando com precisão zonas elípticas de dispersão financeira (*🔴 Operação em Risco*, *Consolidação/Estabilidade* e *🟢 Dias de Ouro*).
-* **Previsão de Fluxo de Caixa Híbrido (XGBoost Regressor):** Algoritmo de inteligência preditiva estruturado com *Time Series Forecasting* para projetar o lucro líquido cumulativo dos próximos 7 dias avaliando o comportamento conjunto de anúncios pagos e tração orgânica.
-* **CFO & Diretor de Conteúdo Artificial:** Agente autônomo baseado no framework **Agno** alimentado pelo modelo de última geração **Llama 3.3 70B (via Groq API)**. O agente emite pareceres econômico-editoriais complexos e possui o botão dinâmico **"🎯 Transformar Parecer em Plano de Ação"**, que converte diagnósticos numéricos em tarefas táticas imediatas sem quebrar o estado de renderização da página (`Session State`).
-
----
-
-## 🛠️ Stack Tecnológica & Infraestrutura
-
-* **Linguagem Principal:** Python 3.10+
-* **Interface do Usuário (Frontend):** Streamlit Cloud com injeção de CSS Customizado para Dark Mode empresarial.
-* **Banco de Dados Relacional:** Supabase (PostgreSQL Cloud) rodando triggers de identidade, restrições exclusivas de chaves primárias e políticas complexas de segurança de dados.
-* **Processamento de Dados & IA:** Pandas, NumPy, Statsmodels, Scikit-learn (RandomForest, GMM), XGBoost, Agno (AI Framework), OpenAI SDK, Groq API.
-* **Gateway de Cobrança:** Stripe API Client + Stripe Checkout Engines.
+* **Frontend & Dashboard:** Streamlit, Plotly (Visualização padrão `ggplot2`).
+* **Backend & Banco de Dados:** Supabase (PostgreSQL), Python.
+* **Engenharia de Dados (ETL):** Pandas, NumPy, conexão direta via GitHub Raw (Kaggle Datasets).
+* **Machine Learning & Estatística:**
+  * `statsmodels` (Regressão OLS Padrão)
+  * `scikit-learn` (Regressão Ridge, Random Forest, Gaussian Mixture Models - GMM)
+  * `xgboost` (Regressão Estocástica de Séries Temporais)
+* **Inteligência Artificial (LLM):** Agentes Autônomos via `agno` rodando o modelo `Llama-3.3-70b-versatile` através da API da **Groq** (Alta velocidade de inferência).
 
 ---
 
-## 📐 Engenharia de Banco de Dados (Schema Supabase)
+## 🧠 Inteligência Estatística Implementada (Até o momento)
 
-O ecossistema utiliza tabelas relacionais altamente otimizadas, indexadas e protegidas contra duplicidade de dados através de chaves compostas exclusivas (`constraints`):
+### 1. Injeção de Dados Reais (Data Pipeline)
+O sistema abandonou simulações (`random.normal`) e foi integrado a um banco de dados real do mercado. Através do script `importar_kaggle.py`, o banco de dados PostgreSQL (Supabase) consome, traduz e injeta mais de 1.100 campanhas auditadas da Meta (arquivo *KAG_conversion_data.csv* do Kaggle), criando um histórico robusto e livre de vieses de amostragem sintética.
 
-### Tabela: `empresas`
-Responsável por gerenciar os tenants corporativos, credenciais de APIs e estado financeiro de acesso ao SaaS.
-```sql
-CREATE TABLE empresas (
-    id BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-    email_dono VARCHAR(255) UNIQUE NOT NULL,
-    shopify_url TEXT,
-    shopify_token TEXT,
-    meta_account_id TEXT,
-    meta_token TEXT,
-    assinatura_ativa BOOLEAN DEFAULT FALSE,
-    data_expiracao_trial TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days')
-);
+### 2. Resolução de Multicolinearidade (AutoML Híbrido)
+Dados reais de marketing sofrem de multicolinearidade natural (gastos com anúncios e alcance orgânico crescem juntos).
+* O sistema tenta rodar uma **Regressão OLS** padrão.
+* Se os pesos (Betas) retornarem negativos (indicando distorção estatística), o sistema automaticamente aplica uma **Regressão Ridge (Regularização L2)** nos bastidores.
+* Os dados são padronizados (`StandardScaler`), a variância é penalizada, e os coeficientes são revertidos matematicamente para a escala financeira original (R$), entregando o valor incremental exato de cada visualização orgânica e de cada Real investido em Ads.
+
+### 3. Clusterização de Risco de Caixa (GMM)
+Substituindo métricas de vaidade simples, o sistema utiliza **Gaussian Mixture Models (GMM)** para agrupar o histórico em elipses de densidade probabilística, classificando os dias da operação em "Dias de Ouro", "Dias Estáveis" e "Dias de Risco" com base na eficiência do capital investido versus Margem de Contribuição.
+
+### 4. Bússola de Vendas (XGBoost)
+Um modelo preditivo avalia a sazonalidade e a memória financeira da semana anterior para prever a **Margem de Contribuição de Marketing (MCM)** dos próximos 7 dias.
+
+### 5. Consultor Executivo (IA Generativa Avançada)
+Um agente LLM conectado ao modelo Llama-3 consome os coeficientes matemáticos da Regressão Ridge e do GMM, traduzindo-os em um parecer executivo e gerando um **Plano de Ação Tático** em linguagem de negócios, sem expor a complexidade econométrica ao lojista/usuário final.
+
+---
+
+## 🛠️ Como Executar o Projeto Localmente
+
+1. **Clone o repositório:**
+   ```bash
+   git clone [https://github.com/seu-usuario/axiquant.git](https://github.com/seu-usuario/axiquant.git)
+   cd axiquant
+
+
+   
