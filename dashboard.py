@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import statsmodels.api as sm
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.mixture import GaussianMixture
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import RidgeCV, Ridge
 import xgboost as xgb
-import plotly.express as px  
+import plotly.express as px
 from conexao_db import puxar_dados_nuvem, sincronizar_loja_shopify, sincronizar_facebook_ads
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
@@ -49,7 +50,7 @@ if not st.session_state['autenticado']:
     with col2:
         st.write("")
         st.title("💎 AxiQuant SaaS")
-        st.markdown("O cérebro financeiro do seu negócio.")
+        st.markdown("O cérebro financeiro das suas campanhas.")
         
         tab_login, tab_cadastro = st.tabs(["🔒 Já tenho conta", "✨ Criar minha conta"])
         
@@ -100,12 +101,10 @@ else:
     assinatura_ativa = empresa.get('assinatura_ativa', False)
     agora = pd.Timestamp.utcnow()
     trial_valido = False
-    dias_restantes = 0
     
     if empresa.get('data_expiracao_trial'):
         expiracao = pd.to_datetime(empresa['data_expiracao_trial'], utc=True)
-        dias_restantes = (expiracao - agora).days
-        if dias_restantes >= 0:
+        if (expiracao - agora).days >= 0:
             trial_valido = True
 
     tem_acesso = assinatura_ativa or trial_valido
@@ -134,24 +133,7 @@ else:
                     st.rerun()
 
     else:
-        st.title("📊 Painel Executivo: Finanças & Marketing")
-        
-        st.sidebar.header("⚙️ Parâmetros Financeiros")
-        usar_dre = st.sidebar.toggle("Ativar Descontos Fixos", value=False, help="Ligue para ver o Lucro Líquido final após todos os custos da empresa.")
-        
-        if usar_dre:
-            pct_cpv = st.sidebar.slider("Custo do Produto (%)", 0, 100, 30) / 100
-            pct_gateway = st.sidebar.slider("Taxas de Cartão (%)", 0.0, 15.0, 5.0) / 100
-            pct_imposto = st.sidebar.slider("Impostos (%)", 0.0, 30.0, 6.0) / 100
-            custo_fixo_mensal = st.sidebar.number_input("Custo Fixo (R$)", min_value=0, value=3000)
-            custo_fixo_diario = custo_fixo_mensal / 30
-        else:
-            pct_cpv = 0.0
-            pct_gateway = 0.0
-            pct_imposto = 0.0
-            custo_fixo_diario = 0.0
-        
-        st.sidebar.divider()
+        st.title("📊 Avaliação de Performance de Campanhas (ROI)")
         
         if st.sidebar.button("🛍️ Puxar Dados Externos (API)"):
             sucesso, msg = sincronizar_facebook_ads(st.session_state['usuario_email'])
@@ -163,7 +145,7 @@ else:
             st.session_state['dados_carregados'] = False
             st.rerun()
 
-        # Agente CFO configurado para falar como um consultor de negócios
+        # Agente CFO configurado para consultoria de Tráfego/Marketing
         groq_client = OpenAI(
             api_key=st.secrets.get("GROQ_API_KEY", ""),
             base_url="https://api.groq.com/openai/v1"
@@ -171,11 +153,11 @@ else:
         
         cfo_agent = Agent(
             model=OpenAIChat(id="llama-3.3-70b-versatile", client=groq_client),
-            description="Você é um consultor financeiro focado em ajudar donos de e-commerce a aumentarem os lucros. Use linguagem simples, direta e de negócios."
+            description="Você é um consultor financeiro focado em ajudar donos de e-commerce a otimizarem campanhas de marketing. Use linguagem simples e direta."
         )
 
         if st.sidebar.button("☁️ Sincronizar Painel", type="primary"):
-            with st.spinner("Processando histórico..."):
+            with st.spinner("Processando histórico de campanhas..."):
                 dados = puxar_dados_nuvem(st.session_state['usuario_email'])
                 if dados:
                     st.session_state['dados_loja'] = dados
@@ -186,197 +168,184 @@ else:
 
         if st.session_state['dados_carregados'] and st.session_state['dados_loja']:
             df = pd.DataFrame(st.session_state['dados_loja'])
-            df['data'] = pd.to_datetime(df['data'])
             
-            colunas_numericas = ['leads', 'investimento_ads', 'ticket_medio', 'faturamento', 
-                                 'alcance_organico', 'interacoes_engajamento', 'posts_publicados']
+            # Limpeza das métricas numéricas
+            colunas_numericas = ['investimento_ads', 'faturamento', 'alcance_organico', 'interacoes_engajamento']
             for col in colunas_numericas:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
             
-            df = df.sort_values('data').dropna()
-            
+            # Cada linha é tratada como uma campanha independente
             csv_export = df.to_csv(index=False).encode('utf-8')
             st.sidebar.download_button(
-                label="📥 Exportar Base (CSV)",
+                label="📥 Exportar Campanhas (CSV)",
                 data=csv_export,
-                file_name="axiquant_base.csv",
+                file_name="axiquant_campanhas.csv",
                 mime="text/csv"
             )
             
-            df['custo_produtos'] = df['faturamento'] * pct_cpv
-            df['taxas_gateway'] = df['faturamento'] * pct_gateway
-            df['impostos'] = df['faturamento'] * pct_imposto
-            df['custo_fixo_rateado'] = custo_fixo_diario
-            df['lucro_liquido'] = df['faturamento'] - (df['investimento_ads'] + df['custo_produtos'] + df['taxas_gateway'] + df['impostos'] + df['custo_fixo_rateado'])
+            # MCM = Receita gerada pela campanha - Custo da campanha
             df['mcm'] = df['faturamento'] - df['investimento_ads']
             
             fat_total = df['faturamento'].sum()
             inv_total = df['investimento_ads'].sum()
             mcm_total = df['mcm'].sum()
-            lucro_total = df['lucro_liquido'].sum()
+            margem_exibida = (mcm_total / fat_total) * 100 if fat_total > 0 else 0
             
-            margem_exibida = (mcm_total / fat_total) * 100 if not usar_dre else (lucro_total / fat_total) * 100
-            label_lucro = "Receita de Marketing" if not usar_dre else "Lucro Líquido Real"
-            valor_lucro = mcm_total if not usar_dre else lucro_total
+            alcance_total = df['alcance_organico'].sum()
+            engajamento_total = df['interacoes_engajamento'].sum()
+            qtd_campanhas = len(df)
             
-            alcance_total = df['alcance_organico'].sum() if 'alcance_organico' in df.columns else 0
-            engajamento_total = df['interacoes_engajamento'].sum() if 'interacoes_engajamento' in df.columns else 0
-            
-            st.markdown("### 🏢 Saúde do Negócio")
+            st.markdown("### 🎯 Visão Geral das Campanhas")
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-            kpi1.metric("Faturamento", f"R$ {fat_total:,.2f}")
-            kpi2.metric(label_lucro, f"R$ {valor_lucro:,.2f}", delta=f"{margem_exibida:.1f}% Margem")
-            kpi3.metric("Alcance (Views)", f"{int(alcance_total):,}".replace(",", "."))
-            kpi4.metric("Engajamento", f"{int(engajamento_total):,}".replace(",", "."))
-            st.sidebar.metric("Total Investido (Ads)", f"R$ {inv_total:,.2f}")
+            kpi1.metric("Receita (Atribuída)", f"R$ {fat_total:,.2f}", help="Total em Vendas gerado diretamente pelos anúncios.")
+            kpi2.metric("Lucro Direto (MCM)", f"R$ {mcm_total:,.2f}", delta=f"{margem_exibida:.1f}% Margem")
+            kpi3.metric("Alcance Total (Views)", f"{int(alcance_total):,}".replace(",", "."))
+            kpi4.metric("Campanhas Analisadas", f"{qtd_campanhas}")
+            st.sidebar.metric("Custo Total (Ads)", f"R$ {inv_total:,.2f}")
             st.divider()
 
-            st.header("🧠 Inteligência de Dados")
-            # Nomes limpos e focados em negócios
-            tab1, tab2, tab3, tab4 = st.tabs(["💸 Retorno por Canal", "🎯 Onde Focar", "🚥 Dias de Ouro", "🔮 Previsão de Vendas"])
+            st.header("🧠 Inteligência Artificial Aplicada")
+            tab1, tab2, tab3, tab4 = st.tabs(["💸 Atribuição de Lucro", "🎯 Variáveis de Peso", "🚥 Clusterização (GMM)", "🔮 Simulador XGBoost"])
             
-            peso_organico = 0
+            peso_org = 0
             
             with tab1:
-                st.subheader("Atribuição de Receita")
-                st.write("A inteligência do AxiQuant analisou o histórico e calculou o retorno exato de cada esforço de marketing da empresa.")
+                st.subheader("Atribuição de Receita e Correção de Multicolinearidade")
+                st.write("O modelo avalia se os gastos em anúncios e o alcance orgânico estão se canibalizando. Se detectado, a IA aplica correções automáticas.")
                 
                 try:
-                    features = ['investimento_ads', 'alcance_organico', 'posts_publicados']
+                    features = ['investimento_ads', 'alcance_organico']
                     X = df[features]
                     y = df['mcm']
                     
-                    # Tenta OLS primeiro (Feijão com arroz)
-                    X_ols = sm.add_constant(X)
-                    modelo_ols = sm.OLS(y, X_ols).fit()
+                    # 1. Diagnóstico Formal de Multicolinearidade (VIF)
+                    X_vif_with_const = sm.add_constant(X)
+                    vif_data = pd.DataFrame()
+                    vif_data["Variável"] = X_vif_with_const.columns
+                    vif_data["VIF"] = [variance_inflation_factor(X_vif_with_const.values, i) for i in range(X_vif_with_const.shape[1])]
                     
-                    peso_ads = modelo_ols.params.get('investimento_ads', 0)
-                    peso_org = modelo_ols.params.get('alcance_organico', 0)
-                    peso_posts = modelo_ols.params.get('posts_publicados', 0)
-                    intercepto = modelo_ols.params.get('const', 0)
+                    tem_multicolinearidade = (vif_data.loc[vif_data["Variável"] != "const", "VIF"] > 5).any()
                     
-                    # Lógica do AutoML: Se a multicolinearidade quebrou os pesos (ficou negativo), aplica Ridge silenciosamente
-                    if peso_ads < 0 or peso_org < 0:
+                    with st.expander("📊 Ver Diagnóstico Estatístico de Multicolinearidade (VIF)"):
+                        st.dataframe(vif_data)
+                        if tem_multicolinearidade:
+                            st.warning("⚠️ Multicolinearidade detectada (VIF > 5). OLS padrão não é confiável.")
+                        else:
+                            st.success("✅ Variáveis independentes saudáveis (VIF < 5).")
+
+                    if tem_multicolinearidade:
+                        # 2. Se houver problema, usamos RidgeCV com Validação Cruzada (Critério Científico)
                         scaler_X = StandardScaler()
                         scaler_y = StandardScaler()
                         
                         X_scaled = scaler_X.fit_transform(X)
                         y_scaled = scaler_y.fit_transform(y.values.reshape(-1, 1)).flatten()
                         
-                        ridge = Ridge(alpha=30.0) # Alpha travado nos bastidores
-                        ridge.fit(X_scaled, y_scaled)
+                        alphas_grid = np.logspace(-3, 3, 50)
+                        ridge_cv = RidgeCV(alphas=alphas_grid, store_cv_values=False)
+                        ridge_cv.fit(X_scaled, y_scaled)
                         
                         std_X = scaler_X.scale_
                         std_y = scaler_y.scale_[0]
-                        coef_originais = ridge.coef_ * (std_y / std_X)
+                        coef_originais = ridge_cv.coef_ * (std_y / std_X)
                         intercepto = scaler_y.mean_[0] - np.sum(coef_originais * scaler_X.mean_)
                         
                         peso_ads = coef_originais[0]
                         peso_org = coef_originais[1]
-                        peso_posts = coef_originais[2]
                         
-                        # Guardamos na variável para o TCC saber que o fallback ativou
-                        st.session_state['metodo_usado'] = "Ridge (Ajuste Automático)"
+                        st.info(f"🛡️ **Modelo Ridge Aplicado:** O sistema ajustou os pesos matematicamente via Validação Cruzada (Alpha Ótimo: {ridge_cv.alpha_:.2f}).")
+                    
                     else:
-                        st.session_state['metodo_usado'] = "Regressão OLS Padrão"
+                        # Se os dados passarem no teste do VIF, usa OLS puro
+                        X_ols = sm.add_constant(X)
+                        modelo_ols = sm.OLS(y, X_ols).fit()
+                        
+                        peso_ads = modelo_ols.params.get('investimento_ads', 0)
+                        peso_org = modelo_ols.params.get('alcance_organico', 0)
+                        intercepto = modelo_ols.params.get('const', 0)
+                        
+                        st.info("📉 **Modelo OLS Aplicado:** Dados sem multicolinearidade severa detectada.")
 
-                    st.success(f"💡 **Conclusão da IA:** Cada visualização orgânica no seu perfil está gerando **R$ {peso_org:.4f}** para o seu negócio. Enquanto isso, cada R$ 1,00 colocado em Anúncios Pagos retorna **R$ {peso_ads:.2f}**.")
+                    st.success(f"💡 **Conclusão:** Cada visualização da campanha gera em média **R$ {peso_org:.4f}** adicionais. Enquanto isso, cada R$ 1,00 colocado em Anúncios retorna **R$ {peso_ads:.2f}** de lucro incremental.")
                     
                     df_coefs = pd.DataFrame({
-                        "Canais de Aquisição": ["Base do Negócio (Inércia)", "Anúncios Pagos (R$)", "Tráfego Orgânico (Views)", "Postagens Diárias"],
-                        "Impacto Direto (R$)": [intercepto, peso_ads, peso_org, peso_posts]
+                        "Métrica Operacional": ["Receita de Inércia (Intercepto)", "Tráfego Pago (R$ Investido)", "Alcance (Views)"],
+                        "Impacto Direto no Lucro (R$)": [intercepto, peso_ads, peso_org]
                     })
-                    st.dataframe(df_coefs.style.format({"Impacto Direto (R$)": "{:,.2f}"}), use_container_width=True)
+                    st.dataframe(df_coefs.style.format({"Impacto Direto no Lucro (R$)": "{:,.4f}"}), use_container_width=True)
+                
                 except Exception as e: 
-                    st.warning("Histórico insuficiente para calcular os retornos.")
+                    st.warning(f"Erro ao computar matriz: {e}")
 
             with tab2:
                 try:
-                    X_clf = df[['investimento_ads', 'alcance_organico', 'interacoes_engajamento', 'posts_publicados']]
+                    X_clf = df[['investimento_ads', 'alcance_organico', 'interacoes_engajamento']]
                     rf = RandomForestClassifier(random_state=42, n_estimators=50).fit(X_clf, (df['mcm'] > df['mcm'].median()).astype(int))
-                    imps = pd.DataFrame({'Métrica': ['Anúncios', 'Alcance Orgânico', 'Engajamento', 'Qtd Posts'], 
+                    imps = pd.DataFrame({'Métrica': X_clf.columns, 
                                          'Importância (%)': rf.feature_importances_ * 100}).sort_values('Importância (%)', ascending=False)
                     
-                    st.info("💡 **Análise de Esforço:** Descubra o que tem mais peso na hora de bater as metas do mês.")
-                    # Plotly: Gráfico estilo ggplot2
+                    st.info("💡 **Análise de Esforço:** Qual variável tem mais impacto para fazer uma campanha ultrapassar a mediana de lucro?")
                     fig_bar = px.bar(imps, x='Métrica', y='Importância (%)', template='ggplot2', color='Importância (%)', color_continuous_scale='Blues')
                     st.plotly_chart(fig_bar, use_container_width=True)
                 except: pass
 
             with tab3:
                 try:
+                    # GMM clusterizando as Campanhas, não mais os dias
                     X_scaled = StandardScaler().fit_transform(df[['investimento_ads', 'mcm']])
                     gmm = GaussianMixture(n_components=3, covariance_type='full', random_state=42)
                     df['Cluster_Num'] = gmm.fit_predict(X_scaled)
                     
                     medias = df.groupby('Cluster_Num')['mcm'].mean().sort_values()
                     mapa_nomes = {
-                        medias.index[0]: 'Dias de Risco (Atenção)',
-                        medias.index[1]: 'Dias Estáveis',
-                        medias.index[2]: 'Dias de Ouro (Alta Venda)'
+                        medias.index[0]: '🔴 Campanhas de Risco (Ineficientes)',
+                        medias.index[1]: '🟡 Campanhas Estáveis',
+                        medias.index[2]: '🟢 Campanhas de Ouro (Alto Retorno)'
                     }
                     df['Momento'] = df['Cluster_Num'].map(mapa_nomes)
                     
-                    st.info("💡 **Mapeamento:** Veja como o seu faturamento reage de acordo com o valor que você investe.")
-                    # Plotly: Gráfico de Dispersão limpo
+                    st.info("💡 **Mapeamento:** Identificando grupos densos de campanhas pelo perfil de risco/retorno.")
                     fig_scatter = px.scatter(df, x='investimento_ads', y='mcm', color='Momento', template='ggplot2',
-                                             labels={'investimento_ads': 'Gasto em Ads (R$)', 'mcm': 'Retorno (R$)'})
+                                             labels={'investimento_ads': 'Gasto da Campanha (R$)', 'mcm': 'Retorno (R$)'})
                     st.plotly_chart(fig_scatter, use_container_width=True)
                 except: pass
 
             with tab4:
-                dias_registrados = len(df)
-                if dias_registrados >= 14: 
-                    try:
-                        df_xgb = df.copy()
-                        df_xgb['dia_semana'] = df_xgb['data'].dt.dayofweek
-                        df_xgb['mcm_ontem'] = df_xgb['mcm'].shift(1)
-                        df_xgb = df_xgb.dropna()
+                try:
+                    X_xgb = df[['investimento_ads', 'alcance_organico']]
+                    y_xgb = df['mcm']
 
-                        X_xgb = df_xgb[['investimento_ads', 'alcance_organico', 'dia_semana', 'mcm_ontem']]
-                        y_xgb = df_xgb['mcm']
-
-                        modelo_xgb = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
-                        modelo_xgb.fit(X_xgb, y_xgb)
-
-                        datas_futuras = [df_xgb['data'].max() + pd.Timedelta(days=i) for i in range(1, 8)]
-                        previsoes = []
-                        mcm_lag = df_xgb['mcm'].iloc[-1]
-                        media_ads = df_xgb['investimento_ads'].tail(7).mean()
-                        media_org = df_xgb['alcance_organico'].tail(7).mean()
-                        
-                        for dt in datas_futuras:
-                            X_futuro = pd.DataFrame({'investimento_ads': [media_ads], 'alcance_organico': [media_org], 'dia_semana': [dt.dayofweek], 'mcm_ontem': [mcm_lag]})
-                            pred = modelo_xgb.predict(X_futuro)[0]
-                            previsoes.append(pred)
-                            mcm_lag = pred
-
-                        df_futuro = pd.DataFrame({'Data': datas_futuras, 'Retorno Previsto (R$)': previsoes})
-                        
-                        st.info("💡 **Bússola de Vendas:** A Inteligência Artificial projetou o seu fluxo de caixa para a próxima semana.")
-                        # Plotly: Gráfico de Linha preditivo
-                        fig_line = px.line(df_futuro, x='Data', y='Retorno Previsto (R$)', template='ggplot2', markers=True)
-                        st.plotly_chart(fig_line, use_container_width=True)
-                    except Exception as e: pass
-                else:
-                    st.info(f"⏳ **Coletando dados ({dias_registrados}/14 dias)...**")
+                    modelo_xgb = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, random_state=42)
+                    modelo_xgb.fit(X_xgb, y_xgb)
+                    
+                    st.info("💡 **Simulador de ROAS:** O algoritmo XGBoost aprendeu os padrões históricos. Insira os dados de uma nova campanha para prever o lucro.")
+                    
+                    col_sim1, col_sim2, col_sim3 = st.columns(3)
+                    sim_invest = col_sim1.number_input("Orçamento Previsto (R$)", min_value=10.0, value=150.0)
+                    sim_alcance = col_sim2.number_input("Estimativa de Views (Alcance)", min_value=100, value=5000)
+                    
+                    X_futuro = pd.DataFrame({'investimento_ads': [sim_invest], 'alcance_organico': [sim_alcance]})
+                    pred_mcm = modelo_xgb.predict(X_futuro)[0]
+                    
+                    col_sim3.metric("Lucro Direto Previsto (MCM)", f"R$ {pred_mcm:,.2f}")
+                except Exception as e:
+                    st.error("Dados insuficientes para simulação preditiva.")
 
             st.divider()
             st.subheader("🤖 Consultoria Executiva IA")
             
             if "relatorio_gerado" not in st.session_state:
-                with st.spinner("Analisando o fluxo de caixa..."):
-                    # Prompt reformulado para bloquear jargões acadêmicos
+                with st.spinner("Analisando as campanhas..."):
                     prompt_cfo = f"""
-                    Você é um Diretor Financeiro (CFO) experiente aconselhando o dono de uma loja.
-                    O Faturamento atual é de R${fat_total:,.2f} e a Receita de Marketing é R${mcm_total:,.2f}.
-                    A IA descobriu que cada visualização orgânica no Instagram/Tiktok gera R${peso_organico:.4f} de receita.
+                    Você é um estrategista financeiro aconselhando uma marca que investe em anúncios no Facebook Ads.
+                    O banco de dados apontou que já geraram uma Receita Atribuída de R${fat_total:,.2f} através de {qtd_campanhas} campanhas.
+                    O modelo provou que cada visualização (alcance) adiciona em média R${peso_org:.4f} ao lucro da campanha.
                     
-                    REGRAS OBRIGATÓRIAS:
-                    1. Escreva 2 parágrafos curtos, encorajadores e diretos.
-                    2. Fale EXCLUSIVAMENTE sobre estratégia de negócios, vendas, conteúdo e como otimizar os lucros.
-                    3. É TOTALMENTE PROIBIDO usar jargões acadêmicos. NÃO use as palavras: 'econometria', 'multicolinearidade', 'modelo Ridge', 'OLS', 'variáveis' ou 'coeficientes'. Fale a língua do lojista.
+                    REGRAS:
+                    1. Escreva 2 parágrafos animadores focados em negócios e criativos de anúncios.
+                    2. É TOTALMENTE PROIBIDO usar os termos: 'econometria', 'VIF', 'Ridge', 'OLS', 'regressão', ou jargões estatísticos. 
+                    3. Fale sobre como otimizar os criativos de anúncios baseados em alcance.
                     """
                     try:
                         st.session_state["relatorio_gerado"] = cfo_agent.run(prompt_cfo).content
@@ -385,13 +354,13 @@ else:
             
             st.write(st.session_state["relatorio_gerado"])
             
-            if st.button("🎯 Gerar Plano de Ação Prático", type="primary", use_container_width=True):
+            if st.button("🎯 Gerar Táticas de Escala", type="primary", use_container_width=True):
                 with st.spinner("Formatando as tarefas..."):
-                    prompt_plano = f"Com base neste cenário financeiro: {st.session_state['relatorio_gerado']}. Escreva 3 passos práticos em formato de checklist que o dono da loja pode aplicar hoje mesmo no seu marketing para aumentar as vendas."
+                    prompt_plano = f"Com base neste cenário financeiro: {st.session_state['relatorio_gerado']}. Escreva 3 passos práticos para o gestor de tráfego."
                     st.session_state["plano_acao_gerado"] = cfo_agent.run(prompt_plano).content
             
             if "plano_acao_gerado" in st.session_state:
-                st.success("🔥 Plano de Marketing Gerado!")
+                st.success("🔥 Plano de Tráfego Gerado!")
                 st.markdown(st.session_state["plano_acao_gerado"])
         else:
             st.info("👋 Clique em 'Sincronizar Painel' para ver seus números.")
