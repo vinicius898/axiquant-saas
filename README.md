@@ -71,7 +71,26 @@ Para testar a aplicação e auditar os modelos estatísticos implementados, siga
 git clone [https://github.com/seu-usuario/axiquant.git](https://github.com/seu-usuario/axiquant.git)
 cd axiquant
 
-**2. Instale as dependências:**
-```bash
+2. Instale as dependências:
 
 pip install streamlit pandas numpy statsmodels scikit-learn xgboost plotly supabase openai agno
+
+3. Configuração de Variáveis de Ambiente:
+Na raiz do projeto, crie o diretório .streamlit e adicione o arquivo secrets.toml:
+
+SUPABASE_URL = "https://seu-projeto.supabase.co"
+SUPABASE_KEY = "sua-chave-anon-publica"
+GROQ_API_KEY = "sua-chave-api-groq"
+
+4. Carga Inicial do Dataset Kaggle:
+(Este script acessa a base raw via internet, formata os dados e popula o banco relacional).
+Adicione sua chave service_role (secreta) temporariamente no arquivo e execute:
+
+python importar_kaggle.py
+
+5. Inicialização da Aplicação Web:
+
+streamlit run dashboard.py
+
+Autor: Vinícius Marques
+Bacharelado em Estatística
