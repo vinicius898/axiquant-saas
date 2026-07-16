@@ -70,3 +70,8 @@ Para testar a aplicação e auditar os modelos estatísticos implementados, siga
 ```bash
 git clone [https://github.com/seu-usuario/axiquant.git](https://github.com/seu-usuario/axiquant.git)
 cd axiquant
+
+**2. Instale as dependências:**
+```bash
+
+pip install streamlit pandas numpy statsmodels scikit-learn xgboost plotly supabase openai agno
